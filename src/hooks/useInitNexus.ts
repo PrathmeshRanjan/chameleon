@@ -47,7 +47,7 @@ const useInitNexus = (sdk: NexusSDK) => {
       allowanceRefCallback.current = data;
     });
 
-    sdk.setOnIntentHook((data) => {
+    sdk.setOnIntentHook((data: OnIntentHookData) => {
       // const { intent, allow, deny, refresh } = data;
       // This is a hook for the dev to show user the intent, the sources and associated fees
       // where,

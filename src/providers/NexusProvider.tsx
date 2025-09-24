@@ -5,7 +5,13 @@ import {
   type OnAllowanceHookData,
   type OnIntentHookData,
 } from "@avail-project/nexus";
-import { createContext, useContext, useEffect, useMemo } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+} from "react";
 import { useAccount } from "wagmi";
 
 interface NexusContextType {
@@ -18,10 +24,14 @@ interface NexusContextType {
 const NexusContext = createContext<NexusContextType | null>(null);
 
 const NexusProvider = ({ children }: { children: React.ReactNode }) => {
-  const sdk = new NexusSDK({
-    network: "mainnet",
-    debug: true,
-  });
+  const sdk = useMemo(
+    () =>
+      new NexusSDK({
+        network: "mainnet",
+        debug: true,
+      }),
+    [],
+  );
   const { status } = useAccount();
   const {
     nexusSDK,
@@ -32,19 +42,26 @@ const NexusProvider = ({ children }: { children: React.ReactNode }) => {
     allowanceRefCallback,
   } = useInitNexus(sdk);
 
-  const handleInit = async () => {
+  const handleInit = useCallback(async () => {
+    if (sdk.isInitialized()) {
+      console.log("Nexus already initialized");
+      return;
+    }
     await initializeNexus();
     attachEventHooks();
-  };
+  }, [sdk, attachEventHooks, initializeNexus]);
 
   useEffect(() => {
-    if (status === "connected" && !sdk.isInitialized()) {
-      handleInit();
-    }
+    /**
+     * Uncomment to initialize Nexus SDK as soon as wallet is connected
+     */
+    // if (status === "connected") {
+    //   handleInit();
+    // }
     if (status === "disconnected") {
       deinitializeNexus();
     }
-  }, [status]);
+  }, [status, deinitializeNexus]);
 
   const value = useMemo(
     () => ({
@@ -53,7 +70,7 @@ const NexusProvider = ({ children }: { children: React.ReactNode }) => {
       allowanceRefCallback,
       handleInit,
     }),
-    [nexusSDK, intentRefCallback, allowanceRefCallback],
+    [nexusSDK, intentRefCallback, allowanceRefCallback, handleInit],
   );
 
   return (
