@@ -3,7 +3,7 @@ import {
   TESTNET_CHAINS,
   MAINNET_CHAINS,
   CHAIN_METADATA,
-} from "@avail-project/nexus";
+} from "@avail-project/nexus-core";
 import {
   Select,
   SelectContent,

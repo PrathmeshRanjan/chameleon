@@ -2,7 +2,7 @@ import {
   TESTNET_TOKEN_METADATA,
   TOKEN_METADATA,
   type SUPPORTED_TOKENS,
-} from "@avail-project/nexus";
+} from "@avail-project/nexus-core";
 import {
   Select,
   SelectContent,

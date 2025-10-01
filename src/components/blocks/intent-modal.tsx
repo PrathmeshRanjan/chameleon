@@ -8,7 +8,10 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import Button from "../ui/button";
-import { CHAIN_METADATA, type OnIntentHookData } from "@avail-project/nexus";
+import {
+  CHAIN_METADATA,
+  type OnIntentHookData,
+} from "@avail-project/nexus-core";
 import { useState } from "react";
 import { ArrowRight, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";

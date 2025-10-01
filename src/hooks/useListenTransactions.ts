@@ -5,7 +5,7 @@ import {
   type ProgressStep,
   type ProgressSteps,
   type SwapStep,
-} from "@avail-project/nexus";
+} from "@avail-project/nexus-core";
 import { useCallback, useEffect, useState } from "react";
 
 // Swap-specific step handling

@@ -2,7 +2,7 @@ import {
   SUPPORTED_CHAINS,
   type SUPPORTED_CHAINS_IDS,
   type SUPPORTED_TOKENS,
-} from "@avail-project/nexus";
+} from "@avail-project/nexus-core";
 import Button from "./ui/button";
 import {
   Card,

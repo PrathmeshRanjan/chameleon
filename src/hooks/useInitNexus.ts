@@ -3,7 +3,7 @@ import type {
   NexusSDK,
   OnAllowanceHookData,
   OnIntentHookData,
-} from "@avail-project/nexus";
+} from "@avail-project/nexus-core";
 import { useRef, useState } from "react";
 
 import { useAccount } from "wagmi";

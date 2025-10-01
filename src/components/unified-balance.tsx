@@ -1,5 +1,5 @@
 import { useNexus } from "@/providers/NexusProvider";
-import { CHAIN_METADATA, type UserAsset } from "@avail-project/nexus";
+import { CHAIN_METADATA, type UserAsset } from "@avail-project/nexus-core";
 import { DollarSign, Loader2 } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import { Label } from "./ui/label";
