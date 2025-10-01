@@ -12,7 +12,7 @@ import {
   CHAIN_METADATA,
   type OnIntentHookData,
 } from "@avail-project/nexus-core";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "../ui/separator";
@@ -45,16 +45,16 @@ const IntentModal = ({ intent }: { intent: OnIntentHookData }) => {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refresh([intentData?.allSources?.length]);
+    await refresh();
     setIsRefreshing(false);
   };
 
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     handleRefresh();
-  //   }, 15000);
-  //   return () => clearInterval(interval);
-  // }, []);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      handleRefresh();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleDeny()}>
       <DialogContent className="gap-y-3">
