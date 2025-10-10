@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@avail-project/nexus-core':
-        specifier: 0.0.3-beta.0
-        version: 0.0.3-beta.0(bufferutil@4.0.9)(google-protobuf@3.21.4)(utf-8-validate@5.0.10)(viem@2.37.9(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.11))(vitest@3.0.9(@types/debug@4.1.12)(@types/node@24.6.1)(jiti@2.6.0)(lightningcss@1.30.1))
+        specifier: ^0.0.1
+        version: 0.0.1(bufferutil@4.0.9)(google-protobuf@3.21.4)(utf-8-validate@5.0.10)(viem@2.37.9(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.11))(vitest@3.0.9(@types/debug@4.1.12)(@types/node@24.6.1)(jiti@2.6.0)(lightningcss@1.30.1))
       '@radix-ui/react-accordion':
         specifier: ^1.2.12
         version: 1.2.12(@types/react-dom@19.1.9(@types/react@19.1.16))(@types/react@19.1.16)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -129,8 +129,8 @@ packages:
       msgpackr: ^1.11.4
       viem: ^2.31.7
 
-  '@avail-project/nexus-core@0.0.3-beta.0':
-    resolution: {integrity: sha512-8zLvgyO11CmjNJJaeIMURZN4QUEffGrJ62Vm9/jOKaoQddFL34/trmavYPmEMTQrQuf9zLOhJdtvqDjzCVJYzQ==}
+  '@avail-project/nexus-core@0.0.1':
+    resolution: {integrity: sha512-34PJfuL22tZ/cJClVOZT2Tuwp2ZoXYyb3ys9k4vicgBloLxs4o7JCM3ZhBJMdevWey9aFJTf8VHZGCQqHSqSyA==}
     peerDependencies:
       viem: ^2.0.0
 
@@ -2480,8 +2480,8 @@ packages:
   es-toolkit@1.33.0:
     resolution: {integrity: sha512-X13Q/ZSc+vsO1q600bvNK4bxgXMkHcf//RxCmYDaRY5DAcT+eoXjY5hoAPGMdRnWQjvyLEcyauG3b6hz76LNqg==}
 
-  es-toolkit@1.39.10:
-    resolution: {integrity: sha512-E0iGnTtbDhkeczB0T+mxmoVlT4YNweEKBLq7oaU4p11mecdsZpNWOglI4895Vh4usbQ+LsJiuLuI2L0Vdmfm2w==}
+  es-toolkit@1.40.0:
+    resolution: {integrity: sha512-8o6w0KFmU0CiIl0/Q/BCEOabF2IJaELM1T2PWj6e8KqzHv1gdx+7JtFnDwOx1kJH/isJ5NwlDG1nCr1HrRF94Q==}
 
   esbuild@0.25.1:
     resolution: {integrity: sha512-BGO5LtrGC7vxnqucAe/rmvKdJllfGaYWdyABvyMoXQlfYMb2bbRuReWR5tEGE//4LcNJj9XrkovTqNYRFZHAMQ==}
@@ -4543,7 +4543,7 @@ snapshots:
       axios: 1.12.2
       browser-headers: 0.4.1
       decimal.js: 10.6.0
-      es-toolkit: 1.39.10
+      es-toolkit: 1.40.0
       fuels: 0.101.1(vitest@3.0.9(@types/debug@4.1.12)(@types/node@24.6.1)(jiti@2.6.0)(lightningcss@1.30.1))
       long: 5.3.2
       msgpackr: 1.11.5
@@ -4552,7 +4552,7 @@ snapshots:
     transitivePeerDependencies:
       - google-protobuf
 
-  '@avail-project/nexus-core@0.0.3-beta.0(bufferutil@4.0.9)(google-protobuf@3.21.4)(utf-8-validate@5.0.10)(viem@2.37.9(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.11))(vitest@3.0.9(@types/debug@4.1.12)(@types/node@24.6.1)(jiti@2.6.0)(lightningcss@1.30.1))':
+  '@avail-project/nexus-core@0.0.1(bufferutil@4.0.9)(google-protobuf@3.21.4)(utf-8-validate@5.0.10)(viem@2.37.9(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.11))(vitest@3.0.9(@types/debug@4.1.12)(@types/node@24.6.1)(jiti@2.6.0)(lightningcss@1.30.1))':
     dependencies:
       '@arcana/ca-common': 1.0.1-alpha.6(@cosmjs/proto-signing@0.34.0)(@cosmjs/stargate@0.34.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(axios@1.12.2)(decimal.js@10.6.0)(fuels@0.101.1(vitest@3.0.9(@types/debug@4.1.12)(@types/node@24.6.1)(jiti@2.6.0)(lightningcss@1.30.1)))(google-protobuf@3.21.4)(long@5.3.2)(msgpackr@1.11.5)(viem@2.37.9(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.1.11))
       '@cosmjs/proto-signing': 0.34.0
@@ -4561,7 +4561,7 @@ snapshots:
       '@starkware-industries/starkware-crypto-utils': 0.2.1
       axios: 1.12.2
       decimal.js: 10.6.0
-      es-toolkit: 1.39.10
+      es-toolkit: 1.40.0
       fuels: 0.101.1(vitest@3.0.9(@types/debug@4.1.12)(@types/node@24.6.1)(jiti@2.6.0)(lightningcss@1.30.1))
       it-ws: 6.1.5(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       long: 5.3.2
@@ -7897,7 +7897,7 @@ snapshots:
 
   es-toolkit@1.33.0: {}
 
-  es-toolkit@1.39.10: {}
+  es-toolkit@1.40.0: {}
 
   esbuild@0.25.1:
     optionalDependencies:
