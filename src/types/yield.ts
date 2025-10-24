@@ -14,13 +14,13 @@ export interface YieldOpportunity {
     riskScore: number; // 1-10 scale
 }
 
+// Matches smart contract UserGuardrails struct
 export interface UserGuardrails {
     maxSlippageBps: number; // in basis points (100 = 1%)
-    maxGasPrice: string; // in gwei
-    minApyDeltaBps: number; // minimum APY difference to trigger rebalancing (in bps)
-    protocolWhitelist: string[]; // array of protocol addresses
-    protocolBlacklist: string[]; // array of protocol addresses
-    enabled: boolean;
+    gasCeilingUSD: number; // maximum gas cost in USD
+    minAPYDiffBps: number; // minimum APY difference to trigger rebalancing (in bps)
+    autoRebalanceEnabled: boolean; // toggle for automated rebalancing
+    lastUpdated: number; // timestamp of last update
 }
 
 export interface UserPosition {
@@ -112,4 +112,50 @@ export interface ProtocolMetadata {
     auditStatus: "audited" | "unaudited" | "partially-audited";
     category: "lending" | "staking" | "liquidity-pool" | "vault";
     supportedAssets: string[];
+}
+
+// Vincent Automation specific types
+
+export interface VincentAutomationConfig {
+    vincentAddress: string;
+    delegationActive: boolean;
+    delegationExpiry: number;
+    scope: VincentScope;
+    schedule: AutomationSchedule;
+}
+
+export interface VincentScope {
+    maxRebalanceAmountUSD: number;
+    allowedProtocols: string[]; // protocol IDs or addresses
+    allowedChains: number[];
+    minAPYGainBps: number; // minimum APY gain to trigger rebalance
+    maxGasCostUSD: number;
+}
+
+export interface AutomationSchedule {
+    frequency: "daily" | "weekly" | "bi-weekly" | "monthly" | "on-demand";
+    preferredTime?: string; // HH:MM format (UTC)
+    preferredDay?: number; // 0-6 for weekly, 1-31 for monthly
+    enabled: boolean;
+}
+
+export interface RebalanceEvent {
+    user: string;
+    fromProtocol: number;
+    toProtocol: number;
+    amount: string;
+    srcChain: number;
+    dstChain: number;
+    apyGain: number;
+    timestamp: number;
+    txHash: string;
+}
+
+export interface VincentStatus {
+    isActive: boolean;
+    lastRebalance: number;
+    totalRebalances: number;
+    totalSaved: string; // gas saved in USD
+    totalYieldGained: string; // additional yield from rebalancing
+    nextScheduledRebalance?: number;
 }
