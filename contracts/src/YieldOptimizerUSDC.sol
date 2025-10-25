@@ -165,7 +165,7 @@ contract YieldOptimizerUSDC is ERC4626, ReentrancyGuard, Ownable {
      * @notice Initialize the yield optimizer vault
      * @param _usdc USDC token address
      * @param _treasury Treasury address for fees
-     * @param _nexus Avail Nexus contract address
+     * @param _nexus Avail Nexus contract address (can be updated later via setNexusContract)
      */
     constructor(
         IERC20 _usdc,

@@ -1,71 +1,83 @@
-import { useState } from "react";
-import { useNexus } from "@/providers/NexusProvider";
+import { useState, useEffect } from "react";
+import { useYieldVault } from "@/hooks/useYieldVault";
+import { useAccount } from "wagmi";
 import {
     SUPPORTED_CHAINS,
     type SUPPORTED_CHAINS_IDS,
-    type SUPPORTED_TOKENS,
 } from "@avail-project/nexus-core";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import Button from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import ChainSelect from "../blocks/chain-select";
-import TokenSelect from "../blocks/token-select";
-import { DollarSign, TrendingUp, ShieldCheck, Loader2 } from "lucide-react";
+import {
+    DollarSign,
+    TrendingUp,
+    ShieldCheck,
+    Loader2,
+    AlertCircle,
+    CheckCircle2,
+    Wallet,
+} from "lucide-react";
+
+// TODO: Replace with actual deployed vault address from environment variable
+const VAULT_ADDRESS = (import.meta.env.VITE_VAULT_ADDRESS ||
+    "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
 const DepositCard = () => {
-    const { nexusSDK, intentRefCallback } = useNexus();
+    const { address, chain: connectedChain } = useAccount();
+    const {
+        deposit: depositToVault,
+        errorMessage,
+        isApproving,
+        isDepositing,
+        isSuccess,
+        isError,
+        usdcBalance,
+        userAssets,
+        formatAssets,
+    } = useYieldVault({ vaultAddress: VAULT_ADDRESS });
+
     const [depositInputs, setDepositInputs] = useState<{
         chain: SUPPORTED_CHAINS_IDS | null;
-        token: SUPPORTED_TOKENS | null;
         amount: string | null;
     }>({
-        chain: SUPPORTED_CHAINS.ETHEREUM,
-        token: "USDC",
+        chain: SUPPORTED_CHAINS.SEPOLIA, // Default to Sepolia where vault is deployed
         amount: null,
     });
-    const [isDepositing, setIsDepositing] = useState(false);
-    const [depositSuccess, setDepositSuccess] = useState(false);
 
     const handleDeposit = async () => {
-        if (
-            !depositInputs.chain ||
-            !depositInputs.token ||
-            !depositInputs.amount
-        )
+        if (!depositInputs.amount || parseFloat(depositInputs.amount) <= 0)
             return;
 
-        setIsDepositing(true);
-        setDepositSuccess(false);
-
         try {
-            // For now, we'll use the bridge function
-            // Later, this will interact with our YieldOptimizer contract
-            const result = await nexusSDK?.bridge({
-                token: depositInputs.token,
-                amount: depositInputs.amount,
-                chainId: depositInputs.chain,
-            });
+            // Deposit directly to vault
+            await depositToVault(depositInputs.amount);
 
-            if (result?.success) {
-                console.log("Deposit successful:", result.explorerUrl);
-                setDepositSuccess(true);
-                // Reset form after successful deposit
-                setTimeout(() => {
-                    setDepositInputs({
-                        ...depositInputs,
-                        amount: null,
-                    });
-                    setDepositSuccess(false);
-                }, 3000);
-            }
+            // Reset form after successful deposit
+            setTimeout(() => {
+                setDepositInputs((prev) => ({
+                    ...prev,
+                    amount: null,
+                }));
+            }, 3000);
         } catch (error) {
             console.error("Error during deposit:", error);
-        } finally {
-            setIsDepositing(false);
-            intentRefCallback.current = null;
         }
     };
+
+    // Auto-reset success state
+    useEffect(() => {
+        if (isSuccess) {
+            const timer = setTimeout(() => {
+                setDepositInputs((prev) => ({
+                    ...prev,
+                    amount: null,
+                }));
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [isSuccess]);
 
     return (
         <Card className="w-full max-w-2xl mx-auto bg-white/90 backdrop-blur-sm">
@@ -79,32 +91,46 @@ const DepositCard = () => {
                 </p>
             </CardHeader>
             <CardContent className="space-y-6">
-                {/* Chain and Token Selection */}
+                {/* Chain Selection (USDC only) */}
                 <div className="grid grid-cols-2 gap-4">
-                    <ChainSelect
-                        selectedChain={
-                            depositInputs?.chain ?? SUPPORTED_CHAINS.ETHEREUM
-                        }
-                        handleSelect={(chain) => {
-                            setDepositInputs({ ...depositInputs, chain });
-                        }}
-                        chainLabel="Source Chain"
-                    />
-                    <TokenSelect
-                        selectedChain={(
-                            depositInputs?.chain ?? SUPPORTED_CHAINS.ETHEREUM
-                        ).toString()}
-                        selectedToken={depositInputs?.token ?? "USDC"}
-                        handleTokenSelect={(token) =>
-                            setDepositInputs({ ...depositInputs, token })
-                        }
-                        tokenLabel="Token"
-                    />
+                    <div className="space-y-2">
+                        <ChainSelect
+                            selectedChain={
+                                depositInputs?.chain ?? SUPPORTED_CHAINS.SEPOLIA
+                            }
+                            handleSelect={(chain) => {
+                                setDepositInputs({ ...depositInputs, chain });
+                            }}
+                            chainLabel="Source Chain"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Token</Label>
+                        <div className="flex items-center gap-2 px-3 py-2 border rounded-lg bg-gray-50 cursor-not-allowed">
+                            <div className="size-6 rounded-full bg-blue-100 flex items-center justify-center">
+                                <DollarSign className="size-4 text-blue-600" />
+                            </div>
+                            <span className="font-medium text-gray-700">
+                                USDC
+                            </span>
+                            <span className="ml-auto text-xs text-gray-500">
+                                Only
+                            </span>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Amount Input */}
                 <div className="space-y-2">
-                    <Label htmlFor="deposit-amount">Amount</Label>
+                    <div className="flex justify-between items-center">
+                        <Label htmlFor="deposit-amount">Amount</Label>
+                        {usdcBalance !== undefined && (
+                            <span className="text-xs text-gray-500 flex items-center gap-1">
+                                <Wallet className="size-3" />
+                                Balance: {formatAssets(usdcBalance)} USDC
+                            </span>
+                        )}
+                    </div>
                     <Input
                         id="deposit-amount"
                         type="number"
@@ -118,6 +144,11 @@ const DepositCard = () => {
                         }
                         className="text-lg"
                     />
+                    {userAssets !== undefined && userAssets > 0n && (
+                        <p className="text-xs text-gray-500">
+                            Your position: {formatAssets(userAssets)} USDC
+                        </p>
+                    )}
                 </div>
 
                 {/* Features Grid */}
@@ -149,45 +180,60 @@ const DepositCard = () => {
                     onClick={handleDeposit}
                     disabled={
                         !depositInputs.chain ||
-                        !depositInputs.token ||
                         !depositInputs.amount ||
+                        isApproving ||
                         isDepositing
                     }
                     className="w-full h-12 text-base"
                 >
-                    {isDepositing ? (
+                    {isApproving ? (
                         <>
                             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                            Processing...
+                            Approving USDC...
                         </>
-                    ) : depositSuccess ? (
-                        "✓ Deposit Successful!"
+                    ) : isDepositing ? (
+                        <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            Depositing...
+                        </>
+                    ) : isSuccess ? (
+                        <>
+                            <CheckCircle2 className="mr-2 h-5 w-5" />
+                            Deposited Successfully!
+                        </>
                     ) : (
                         "Deposit & Start Earning"
                     )}
                 </Button>
 
-                {/* Progress Info */}
-                {intentRefCallback?.current?.intent && (
-                    <div className="p-4 bg-blue-50 rounded-lg space-y-2">
-                        <p className="text-sm font-medium text-blue-900">
-                            Transaction Progress
-                        </p>
-                        <p className="text-xs text-blue-700">
-                            Processing your cross-chain deposit...
-                        </p>
+                {/* Error Message */}
+                {isError && errorMessage && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                        <AlertCircle className="size-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-sm font-medium text-red-900">
+                                Transaction Failed
+                            </p>
+                            <p className="text-xs text-red-700 mt-1">
+                                {errorMessage}
+                            </p>
+                        </div>
                     </div>
                 )}
 
-                {depositSuccess && (
-                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="text-sm font-medium text-green-900">
-                            🎉 Deposit successful!
-                        </p>
-                        <p className="text-xs text-green-700 mt-1">
-                            Your funds are now being optimized for the best
-                            yields
-                        </p>
+                {/* Success Message */}
+                {isSuccess && (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">
+                        <CheckCircle2 className="size-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-sm font-medium text-green-900">
+                                🎉 Deposit successful!
+                            </p>
+                            <p className="text-xs text-green-700 mt-1">
+                                Your funds are now being optimized for the best
+                                yields
+                            </p>
+                        </div>
                     </div>
                 )}
             </CardContent>
