@@ -69,28 +69,32 @@ const CHAINS: Record<string, ChainConfig> = {
     chainId: 1,
     name: 'Ethereum',
     rpcUrl: process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com',
-    vaultAddress: '0x0000000000000000000000000000000000000000', // TODO: Deploy
+    // Set ETHEREUM_VAULT_ADDRESS in .env after deploying vault on Ethereum
+    vaultAddress: (process.env.ETHEREUM_VAULT_ADDRESS as Address) || '0x0000000000000000000000000000000000000000',
     usdcAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
   },
   base: {
     chainId: 8453,
     name: 'Base',
     rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
-    vaultAddress: process.env.VITE_VAULT_ADDRESS as Address || '0x0000000000000000000000000000000000000000',
+    // Set BASE_VAULT_ADDRESS in .env after running Deploy.s.sol on Base
+    vaultAddress: (process.env.BASE_VAULT_ADDRESS || process.env.VITE_VAULT_ADDRESS) as Address || '0x0000000000000000000000000000000000000000',
     usdcAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
   },
   arbitrum: {
     chainId: 42161,
     name: 'Arbitrum',
     rpcUrl: process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
-    vaultAddress: '0x0000000000000000000000000000000000000000', // TODO: Deploy
+    // Set ARBITRUM_VAULT_ADDRESS in .env after running DeployArbitrum.s.sol
+    vaultAddress: (process.env.ARBITRUM_VAULT_ADDRESS as Address) || '0x0000000000000000000000000000000000000000',
     usdcAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'
   },
   optimism: {
     chainId: 10,
     name: 'Optimism',
-    rpcUrl: process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
-    vaultAddress: '0x0000000000000000000000000000000000000000', // TODO: Deploy
+    rpcUrl: process.env.OPTIMISM_PC_URL || 'https://mainnet.optimism.io',
+    // Set OPTIMISM_VAULT_ADDRESS in .env after deploying vault on Optimism
+    vaultAddress: (process.env.OPTIMISM_VAULT_ADDRESS as Address) || '0x0000000000000000000000000000000000000000',
     usdcAddress: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85'
   }
 };
@@ -120,8 +124,16 @@ const PROTOCOLS: Record<number, ProtocolConfig[]> = {
     {
       id: 1,
       name: 'Aave V3',
-      adapterAddress: '0x0000000000000000000000000000000000000000', // From deployment
+      // Set BASE_AAVE_ADAPTER in .env - from Deploy.s.sol output
+      adapterAddress: (process.env.BASE_AAVE_ADAPTER as Address) || '0x0000000000000000000000000000000000000000',
       protocolType: 'aave'
+    },
+    {
+      id: 3,
+      name: 'Morpho Blue',
+      // Set BASE_MORPHO_ADAPTER in .env if Morpho deployed on Base
+      adapterAddress: (process.env.BASE_MORPHO_ADAPTER as Address) || '0x0000000000000000000000000000000000000000',
+      protocolType: 'morpho'
     }
   ],
   // Arbitrum protocols
@@ -129,13 +141,15 @@ const PROTOCOLS: Record<number, ProtocolConfig[]> = {
     {
       id: 1,
       name: 'Aave V3',
-      adapterAddress: '0x0000000000000000000000000000000000000000', // TODO: Deploy
+      // Set ARBITRUM_AAVE_ADAPTER in .env - from DeployArbitrum.s.sol output
+      adapterAddress: (process.env.ARBITRUM_AAVE_ADAPTER as Address) || '0x0000000000000000000000000000000000000000',
       protocolType: 'aave'
     },
     {
       id: 3,
       name: 'Morpho Blue',
-      adapterAddress: '0x0000000000000000000000000000000000000000', // TODO: Deploy
+      // Set ARBITRUM_MORPHO_ADAPTER in .env - from DeployArbitrum.s.sol output
+      adapterAddress: (process.env.ARBITRUM_MORPHO_ADAPTER as Address) || '0x0000000000000000000000000000000000000000',
       protocolType: 'morpho'
     }
   ],

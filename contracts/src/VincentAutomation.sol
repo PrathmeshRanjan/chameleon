@@ -159,17 +159,17 @@ contract VincentAutomation is Ownable, ReentrancyGuard {
 
         // Execute rebalance
         YieldOptimizerUSDC.RebalanceParams memory params = YieldOptimizerUSDC.RebalanceParams({
-            sourceProtocol: sourceProtocol,
-            destProtocol: destProtocol,
+            user: user,
+            fromProtocol: uint8(sourceProtocol),
+            toProtocol: uint8(destProtocol),
             amount: amount,
-            minAmountOut: amount * (10000 - maxSlippage) / 10000,
-            deadline: block.timestamp + 30 minutes,
-            isCrossChain: false,
-            destChainId: 0,
-            destVaultAdapter: address(0)
+            srcChainId: chainId,
+            dstChainId: chainId,
+            expectedAPYGain: minAPYGain,
+            estimatedGasCostUSD: estimatedGasCost
         });
 
-        vault.executeRebalance(user, params);
+        vault.executeRebalance(params);
 
         // Update tracking
         lastRebalance[user][chainId] = block.timestamp;
@@ -234,17 +234,17 @@ contract VincentAutomation is Ownable, ReentrancyGuard {
 
         // Execute cross-chain rebalance
         YieldOptimizerUSDC.RebalanceParams memory params = YieldOptimizerUSDC.RebalanceParams({
-            sourceProtocol: sourceProtocol,
-            destProtocol: destProtocol,
+            user: user,
+            fromProtocol: uint8(sourceProtocol),
+            toProtocol: uint8(destProtocol),
             amount: amount,
-            minAmountOut: amount * (10000 - maxSlippage) / 10000,
-            deadline: block.timestamp + 30 minutes,
-            isCrossChain: true,
-            destChainId: destChainId,
-            destVaultAdapter: destVaultAdapter
+            srcChainId: sourceChainId,
+            dstChainId: destChainId,
+            expectedAPYGain: minAPYGain,
+            estimatedGasCostUSD: estimatedGasCost
         });
 
-        sourceVault.executeRebalance(user, params);
+        sourceVault.executeRebalance(params);
 
         // Update tracking
         lastRebalance[user][sourceChainId] = block.timestamp;

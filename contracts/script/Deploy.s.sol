@@ -25,8 +25,12 @@ contract DeployScript is Script {
     
     // TODO: Update with actual Base Mainnet addresses
     address constant COMPOUND_COMET_BASE = address(0); // TODO: Update with Compound V3 Comet address
-    address constant MORPHO_BLUE_BASE = address(0); // TODO: Update with Morpho Blue address
-    address constant MORPHO_IRM_BASE = address(0); // TODO: Update with Morpho IRM address
+
+    // Morpho Blue on Base Mainnet
+    address constant MORPHO_BLUE_BASE = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
+
+    // Adaptive Curve IRM for Base (verified)
+    address constant MORPHO_IRM_BASE = 0x46415998764C29aB2a25CbeA6254146D50D22687;
     
     uint256 constant BASE_CHAIN_ID = 8453;
 
