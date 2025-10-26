@@ -1,0 +1,86 @@
+{
+  "name": "execute-yield-rebalance",
+  "version": "1.0.0",
+  "description": "Execute automated yield optimization rebalancing for users based on APY opportunities",
+  "type": "scheduled",
+  "schedule": {
+    "cron": "0 */6 * * *",
+    "description": "Run every 6 hours"
+  },
+  "function": {
+    "handler": "rebalance-engine.ts",
+    "method": "rebalanceAllUsers",
+    "timeout": 600000
+  },
+  "parameters": [
+    {
+      "name": "users",
+      "type": "address[]",
+      "description": "Array of user addresses to rebalance",
+      "required": true
+    },
+    {
+      "name": "vaultAddresses",
+      "type": "object",
+      "description": "Mapping of chainId to vault address",
+      "required": true,
+      "schema": {
+        "1": "address (Ethereum)",
+        "8453": "address (Base)",
+        "42161": "address (Arbitrum)",
+        "10": "address (Optimism)"
+      }
+    }
+  ],
+  "returns": {
+    "type": "object",
+    "description": "Execution results per user",
+    "schema": {
+      "user_address": {
+        "type": "array",
+        "items": {
+          "success": "boolean",
+          "txHash": "string (optional)",
+          "error": "string (optional)",
+          "gasCost": "number (optional)",
+          "apyGain": "number (optional)"
+        }
+      }
+    }
+  },
+  "permissions": {
+    "blockchain": {
+      "read": true,
+      "write": true,
+      "networks": ["ethereum", "base", "arbitrum", "optimism"],
+      "contracts": ["VincentAutomation", "YieldOptimizerUSDC"]
+    },
+    "external_apis": false
+  },
+  "env_required": [
+    "ETHEREUM_RPC_URL",
+    "BASE_RPC_URL",
+    "ARBITRUM_RPC_URL",
+    "OPTIMISM_RPC_URL",
+    "VINCENT_AUTOMATION_ADDRESS",
+    "VINCENT_PRIVATE_KEY",
+    "VITE_VAULT_ADDRESS"
+  ],
+  "security": {
+    "requires_approval": true,
+    "max_gas_per_tx": "1000000",
+    "max_value_per_tx": "0",
+    "rate_limit": {
+      "max_calls_per_hour": 10,
+      "max_calls_per_day": 40
+    }
+  },
+  "tags": ["defi", "yield", "automation", "rebalancing", "multi-chain"],
+  "category": "transaction-execution",
+  "alerts": {
+    "on_failure": true,
+    "on_success": true,
+    "slack_webhook": "${SLACK_WEBHOOK_URL}",
+    "email": "${ADMIN_EMAIL}"
+  }
+}

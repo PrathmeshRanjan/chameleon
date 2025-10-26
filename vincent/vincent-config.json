@@ -1,0 +1,205 @@
+{
+  "project": {
+    "name": "YieldPro Multi-Chain Optimizer",
+    "version": "1.0.0",
+    "description": "Automated cross-chain yield optimization using Vincent AI",
+    "repository": "https://github.com/yourusername/YieldPro"
+  },
+  "vincent": {
+    "version": "1.0.0",
+    "automation_contract": "${VINCENT_AUTOMATION_ADDRESS}",
+    "executor_address": "${VINCENT_EXECUTOR_ADDRESS}",
+    "supported_chains": [
+      {
+        "chainId": 1,
+        "name": "Ethereum",
+        "enabled": true,
+        "vault_address": "${ETHEREUM_VAULT_ADDRESS}"
+      },
+      {
+        "chainId": 8453,
+        "name": "Base",
+        "enabled": true,
+        "vault_address": "${BASE_VAULT_ADDRESS}"
+      },
+      {
+        "chainId": 42161,
+        "name": "Arbitrum",
+        "enabled": true,
+        "vault_address": "${ARBITRUM_VAULT_ADDRESS}"
+      },
+      {
+        "chainId": 10,
+        "name": "Optimism",
+        "enabled": true,
+        "vault_address": "${OPTIMISM_VAULT_ADDRESS}"
+      }
+    ]
+  },
+  "abilities": [
+    {
+      "id": "monitor-yield-apy",
+      "config": "./abilities/monitor-apy.json",
+      "enabled": true,
+      "priority": "high"
+    },
+    {
+      "id": "find-yield-opportunities",
+      "config": "./abilities/find-opportunities.json",
+      "enabled": true,
+      "priority": "medium"
+    },
+    {
+      "id": "execute-yield-rebalance",
+      "config": "./abilities/execute-rebalance.json",
+      "enabled": true,
+      "priority": "critical"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "automated-yield-optimization",
+      "description": "Full automated yield optimization workflow",
+      "schedule": "0 */6 * * *",
+      "steps": [
+        {
+          "ability": "monitor-yield-apy",
+          "save_output": "apy_data"
+        },
+        {
+          "ability": "find-yield-opportunities",
+          "input": {
+            "apyData": "${apy_data}",
+            "minAPYGain": 50
+          },
+          "save_output": "opportunities"
+        },
+        {
+          "ability": "execute-yield-rebalance",
+          "input": {
+            "users": "${ACTIVE_USERS}",
+            "vaultAddresses": "${VAULT_ADDRESSES}"
+          },
+          "conditions": [
+            {
+              "check": "${opportunities.length} > 0",
+              "error_message": "No profitable opportunities found"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "monitoring": {
+    "metrics": {
+      "total_rebalances": {
+        "source": "VincentAutomation.totalRebalances",
+        "type": "counter"
+      },
+      "total_yield_gained": {
+        "source": "VincentAutomation.totalYieldGained",
+        "type": "gauge",
+        "unit": "basis_points"
+      },
+      "total_gas_saved": {
+        "source": "VincentAutomation.totalGasSaved",
+        "type": "gauge",
+        "unit": "usd"
+      },
+      "active_protocols": {
+        "source": "custom",
+        "calculation": "count(protocols.where(isHealthy == true))"
+      }
+    },
+    "alerts": [
+      {
+        "name": "protocol_unhealthy",
+        "condition": "protocol.isHealthy == false",
+        "severity": "warning",
+        "channels": ["slack", "email"]
+      },
+      {
+        "name": "rebalance_failed",
+        "condition": "rebalance.success == false",
+        "severity": "error",
+        "channels": ["slack", "email", "pagerduty"]
+      },
+      {
+        "name": "high_gas_cost",
+        "condition": "rebalance.gasCost > 10000000",
+        "severity": "warning",
+        "message": "Gas cost exceeding $10"
+      },
+      {
+        "name": "low_apy_opportunity",
+        "condition": "opportunities.length == 0 for 24h",
+        "severity": "info",
+        "message": "No yield opportunities for extended period"
+      }
+    ]
+  },
+  "security": {
+    "multi_sig": {
+      "enabled": false,
+      "threshold": "2/3",
+      "signers": []
+    },
+    "rate_limiting": {
+      "max_rebalances_per_hour": 10,
+      "max_rebalances_per_day": 50,
+      "max_gas_per_day_usd": 100
+    },
+    "emergency": {
+      "pause_contract": "${VINCENT_AUTOMATION_ADDRESS}",
+      "pause_method": "pause()",
+      "admin_address": "${ADMIN_ADDRESS}"
+    }
+  },
+  "notifications": {
+    "slack": {
+      "webhook_url": "${SLACK_WEBHOOK_URL}",
+      "channels": {
+        "alerts": "#yield-alerts",
+        "info": "#yield-info",
+        "success": "#yield-success"
+      }
+    },
+    "email": {
+      "smtp_server": "${SMTP_SERVER}",
+      "from": "vincent@yieldpro.ai",
+      "recipients": {
+        "errors": ["${ADMIN_EMAIL}"],
+        "reports": ["${ADMIN_EMAIL}", "${TEAM_EMAIL}"]
+      }
+    },
+    "telegram": {
+      "bot_token": "${TELEGRAM_BOT_TOKEN}",
+      "chat_id": "${TELEGRAM_CHAT_ID}"
+    }
+  },
+  "reporting": {
+    "daily_summary": {
+      "enabled": true,
+      "time": "09:00 UTC",
+      "include": [
+        "total_rebalances",
+        "total_yield_gained",
+        "total_gas_used",
+        "top_opportunities",
+        "protocol_health_status"
+      ]
+    },
+    "weekly_report": {
+      "enabled": true,
+      "day": "monday",
+      "time": "09:00 UTC",
+      "include": [
+        "performance_summary",
+        "user_statistics",
+        "protocol_comparison",
+        "chain_utilization",
+        "recommendations"
+      ]
+    }
+  }
+}
