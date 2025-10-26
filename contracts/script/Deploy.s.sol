@@ -25,8 +25,14 @@ contract DeployScript is Script {
     
     // TODO: Update with actual Base Mainnet addresses
     address constant COMPOUND_COMET_BASE = address(0); // TODO: Update with Compound V3 Comet address
-    address constant MORPHO_BLUE_BASE = address(0); // TODO: Update with Morpho Blue address
-    address constant MORPHO_IRM_BASE = address(0); // TODO: Update with Morpho IRM address
+
+    // Morpho Blue on Base Mainnet (deployed across all chains)
+    address constant MORPHO_BLUE_BASE = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
+
+    // Morpho IRM - NOTE: Query from Morpho market or use AdaptiveCurveIRM
+    // For dynamic markets, IRM can be fetched from existing markets on-chain
+    // Example USDC markets exist at: app.morpho.org/base
+    address constant MORPHO_IRM_BASE = address(0); // TODO: Set specific IRM or query from market
     
     uint256 constant BASE_CHAIN_ID = 8453;
 
