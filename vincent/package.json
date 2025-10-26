@@ -1,0 +1,48 @@
+{
+  "name": "yieldpro-vincent-automation",
+  "version": "1.0.0",
+  "description": "Vincent AI automation for YieldPro multi-chain yield optimizer",
+  "main": "index.ts",
+  "scripts": {
+    "monitor": "tsx apy-monitor.ts",
+    "rebalance": "tsx rebalance-engine.ts",
+    "find-opportunities": "tsx -e \"import { monitorAllAPYs, findBestOpportunities, formatOpportunities } from './apy-monitor'; monitorAllAPYs().then(data => { const opps = findBestOpportunities(data); formatOpportunities(opps); });\"",
+    "check-user": "tsx -e \"import { getUserPositions } from './apy-monitor'; getUserPositions(process.env.USER_ADDRESS).then(console.log);\"",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts",
+    "test": "jest",
+    "dev": "tsx watch apy-monitor.ts",
+    "register-abilities": "node scripts/register-abilities.js"
+  },
+  "keywords": [
+    "defi",
+    "yield",
+    "automation",
+    "vincent",
+    "cross-chain",
+    "ethereum",
+    "base",
+    "arbitrum",
+    "optimism"
+  ],
+  "author": "YieldPro Team",
+  "license": "MIT",
+  "dependencies": {
+    "viem": "^2.37.7",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "eslint": "^9.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.19.1",
+    "@typescript-eslint/parser": "^8.19.1",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.14"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

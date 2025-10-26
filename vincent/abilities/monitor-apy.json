@@ -1,0 +1,47 @@
+{
+  "name": "monitor-yield-apy",
+  "version": "1.0.0",
+  "description": "Monitor DeFi protocol APYs across multiple chains for yield optimization opportunities",
+  "type": "scheduled",
+  "schedule": {
+    "cron": "*/30 * * * *",
+    "description": "Run every 30 minutes"
+  },
+  "function": {
+    "handler": "apy-monitor.ts",
+    "method": "monitorAllAPYs",
+    "timeout": 300000
+  },
+  "parameters": [],
+  "returns": {
+    "type": "array",
+    "description": "Array of APY data for all protocols across all chains",
+    "schema": {
+      "chainId": "number",
+      "chainName": "string",
+      "protocolId": "number",
+      "protocolName": "string",
+      "apy": "number (basis points)",
+      "tvl": "bigint",
+      "timestamp": "number",
+      "isHealthy": "boolean"
+    }
+  },
+  "permissions": {
+    "blockchain": {
+      "read": true,
+      "write": false,
+      "networks": ["ethereum", "base", "arbitrum", "optimism"]
+    },
+    "external_apis": true
+  },
+  "env_required": [
+    "ETHEREUM_RPC_URL",
+    "BASE_RPC_URL",
+    "ARBITRUM_RPC_URL",
+    "OPTIMISM_RPC_URL",
+    "VITE_VAULT_ADDRESS"
+  ],
+  "tags": ["defi", "yield", "monitoring", "multi-chain"],
+  "category": "data-collection"
+}

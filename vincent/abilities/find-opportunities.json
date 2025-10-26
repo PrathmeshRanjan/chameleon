@@ -1,0 +1,70 @@
+{
+  "name": "find-yield-opportunities",
+  "version": "1.0.0",
+  "description": "Find best yield opportunities across chains without executing rebalances",
+  "type": "on-demand",
+  "function": {
+    "handler": "apy-monitor.ts",
+    "method": "findBestOpportunities",
+    "timeout": 60000
+  },
+  "parameters": [
+    {
+      "name": "apyData",
+      "type": "array",
+      "description": "Array of APY data from monitorAllAPYs",
+      "required": true
+    },
+    {
+      "name": "minAPYGain",
+      "type": "number",
+      "description": "Minimum APY gain in basis points (default: 50 = 0.5%)",
+      "required": false,
+      "default": 50
+    }
+  ],
+  "returns": {
+    "type": "array",
+    "description": "Array of yield opportunities sorted by APY gain",
+    "schema": {
+      "sourceChain": "object (ChainConfig)",
+      "sourceProtocol": "object (ProtocolConfig)",
+      "sourceAPY": "number (basis points)",
+      "destChain": "object (ChainConfig)",
+      "destProtocol": "object (ProtocolConfig)",
+      "destAPY": "number (basis points)",
+      "apyGain": "number (basis points)",
+      "estimatedGasCost": "number (USD scaled by 1e6)",
+      "isCrossChain": "boolean",
+      "expectedProfit": "number (USD scaled by 1e6)",
+      "profitableAfterGas": "boolean"
+    }
+  },
+  "permissions": {
+    "blockchain": {
+      "read": false,
+      "write": false
+    },
+    "external_apis": false
+  },
+  "env_required": [],
+  "tags": ["defi", "yield", "analysis", "read-only"],
+  "category": "data-analysis",
+  "examples": [
+    {
+      "description": "Find opportunities with default minimum APY gain",
+      "input": {
+        "apyData": "[... APY data from monitor-yield-apy ...]"
+      },
+      "expected_output": "Array of opportunities sorted by profitability"
+    },
+    {
+      "description": "Find opportunities with custom minimum APY gain",
+      "input": {
+        "apyData": "[... APY data from monitor-yield-apy ...]",
+        "minAPYGain": 100
+      },
+      "expected_output": "Array of opportunities with at least 1% APY gain"
+    }
+  ]
+}
