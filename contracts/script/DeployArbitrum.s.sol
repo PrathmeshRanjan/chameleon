@@ -22,16 +22,16 @@ contract DeployArbitrumScript is Script {
     // Aave V3 Pool on Arbitrum Mainnet
     address constant AAVE_POOL_ARBITRUM = 0x794a61358D6845594F94dc1DB02A252b5b4814aD;
 
-    // Morpho Blue on Arbitrum (same address across all chains)
-    address constant MORPHO_BLUE_ARBITRUM = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
+    // Morpho Blue on Arbitrum (verified)
+    address constant MORPHO_BLUE_ARBITRUM = 0x6c247b1F6182318877311737BaC0844bAa518F5e;
 
-    // Morpho IRM for Arbitrum USDC markets
-    // NOTE: Query from specific market or use AdaptiveCurveIRM
-    // Can be fetched from app.morpho.org/arbitrum markets
-    address constant MORPHO_IRM_ARBITRUM = address(0); // TODO: Set specific IRM or query from market
+    // Adaptive Curve IRM for Arbitrum (verified)
+    address constant MORPHO_IRM_ARBITRUM = 0x66F30587FB8D4206918deb78ecA7d5eBbafD06DA;
 
-    // Morpho Oracle (typically Chainlink-based for USDC markets)
-    address constant MORPHO_ORACLE_ARBITRUM = address(0); // TODO: Set based on market requirements
+    // Morpho Oracle for USDC markets on Arbitrum
+    // NOTE: For supply-only USDC markets, oracle can be same as collateral token or zero address
+    // Update based on specific market requirements
+    address constant MORPHO_ORACLE_ARBITRUM = address(0); // Will be set based on market setup
 
     uint256 constant ARBITRUM_CHAIN_ID = 42161;
 
