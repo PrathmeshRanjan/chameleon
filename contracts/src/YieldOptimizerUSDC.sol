@@ -165,7 +165,7 @@ contract YieldOptimizerUSDC is ERC4626, ReentrancyGuard, Ownable {
      * @notice Initialize the yield optimizer vault
      * @param _usdc USDC token address
      * @param _treasury Treasury address for fees
-     * @param _nexus Avail Nexus contract address (can be updated later via setNexusContract)
+     * @param _nexus Avail Nexus contract address (can be address(0) and updated later via setNexusContract)
      */
     constructor(
         IERC20 _usdc,
@@ -173,7 +173,7 @@ contract YieldOptimizerUSDC is ERC4626, ReentrancyGuard, Ownable {
         address _nexus
     ) ERC4626(_usdc) ERC20("Smart Yield USDC", "syUSDC") Ownable(msg.sender) {
         require(_treasury != address(0), "Invalid treasury");
-        require(_nexus != address(0), "Invalid nexus");
+        // Nexus can be address(0) and set later via setNexusContract
         
         treasury = _treasury;
         nexusContract = _nexus;
@@ -625,6 +625,8 @@ contract YieldOptimizerUSDC is ERC4626, ReentrancyGuard, Ownable {
      * @param params Rebalance parameters
      */
     function _rebalanceCrossChain(RebalanceParams calldata params) internal {
+        require(nexusContract != address(0), "Nexus contract not set");
+        
         // Withdraw from source protocol
         if (params.fromProtocol > 0) {
             address sourceAdapter = protocolAdapters[params.fromProtocol]

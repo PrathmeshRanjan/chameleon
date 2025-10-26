@@ -16,7 +16,7 @@ function App() {
                     monitoring
                 </p>
                 <p className="text-sm text-gray-500">
-                    Powered by Avail Nexus • Vincent Automation • Pyth Network
+                    Powered by Avail Nexus • Vincent Automation
                 </p>
             </div>
             <div className="flex gap-x-4 items-center justify-center z-10">

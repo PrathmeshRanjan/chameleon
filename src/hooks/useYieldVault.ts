@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import {
     useAccount,
     useReadContract,
@@ -7,7 +7,7 @@ import {
 } from "wagmi";
 import { parseAbi, parseUnits, formatUnits } from "viem";
 import { erc20Abi } from "viem";
-import { sepolia } from "wagmi/chains";
+import { sepolia, base } from "wagmi/chains";
 
 // Simplified ABI for YieldOptimizerUSDC
 const YIELD_OPTIMIZER_ABI = parseAbi([
@@ -22,18 +22,22 @@ const YIELD_OPTIMIZER_ABI = parseAbi([
 
 interface UseYieldVaultProps {
     vaultAddress: `0x${string}`;
+    chainId?: number;
     enabled?: boolean;
 }
 
-// Hardcoded USDC address on Ethereum Sepolia (Aave V3 reserve)
-const USDC_SEPOLIA =
-    "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8" as `0x${string}`;
+// USDC addresses by chain
+const USDC_ADDRESSES: Record<number, `0x${string}`> = {
+    [sepolia.id]: "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8", // Sepolia
+    [base.id]: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // Base mainnet
+};
 
-// Vault is deployed on Sepolia
-const VAULT_CHAIN_ID = sepolia.id;
+// Default to Base mainnet
+const DEFAULT_CHAIN_ID = base.id;
 
 export const useYieldVault = ({
     vaultAddress,
+    chainId = DEFAULT_CHAIN_ID,
     enabled = true,
 }: UseYieldVaultProps) => {
     const { address } = useAccount();
@@ -42,67 +46,84 @@ export const useYieldVault = ({
     >("idle");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    // Use hardcoded USDC address instead of fetching from contract
-    // This avoids issues with unverified contracts
-    const assetAddress = USDC_SEPOLIA;
+    // Get USDC address for the specified chain
+    const assetAddress = USDC_ADDRESSES[chainId];
 
-    // Get user's syUSDC balance (on Sepolia)
+    // Get user's syUSDC balance
     const { data: userShares, refetch: refetchShares } = useReadContract({
         address: vaultAddress,
         abi: YIELD_OPTIMIZER_ABI,
         functionName: "balanceOf",
         args: address ? [address] : undefined,
-        chainId: VAULT_CHAIN_ID,
+        chainId: chainId,
         query: {
             enabled: enabled && !!address,
         },
     });
 
-    // Convert shares to assets (on Sepolia)
+    // Convert shares to assets
     const { data: userAssets } = useReadContract({
         address: vaultAddress,
         abi: YIELD_OPTIMIZER_ABI,
         functionName: "convertToAssets",
         args: userShares ? [userShares] : undefined,
-        chainId: VAULT_CHAIN_ID,
+        chainId: chainId,
         query: {
             enabled: enabled && !!userShares,
         },
     });
 
-    // Get vault's total assets (on Sepolia)
+    // Get vault's total assets
     const { data: totalAssets } = useReadContract({
         address: vaultAddress,
         abi: YIELD_OPTIMIZER_ABI,
         functionName: "totalAssets",
-        chainId: VAULT_CHAIN_ID,
+        chainId: chainId,
         query: {
             enabled,
         },
     });
 
-    // Get user's USDC balance (on Sepolia)
+    // Get user's USDC balance
     const { data: usdcBalance, refetch: refetchUsdcBalance } = useReadContract({
         address: assetAddress as `0x${string}`,
         abi: erc20Abi,
         functionName: "balanceOf",
         args: address ? [address] : undefined,
-        chainId: VAULT_CHAIN_ID,
+        chainId: chainId,
         query: {
             enabled: enabled && !!address && !!assetAddress,
         },
     });
 
-    // Get USDC allowance for vault (on Sepolia)
+    // Get USDC allowance for vault
     const { data: usdcAllowance, refetch: refetchAllowance } = useReadContract({
         address: assetAddress as `0x${string}`,
         abi: erc20Abi,
         functionName: "allowance",
         args: address && vaultAddress ? [address, vaultAddress] : undefined,
-        chainId: VAULT_CHAIN_ID,
+        chainId: chainId,
         query: {
             enabled: enabled && !!address && !!assetAddress,
+            refetchInterval: 10000, // Refetch every 10 seconds instead of on every change
         },
+    });
+
+    // Debug wallet connection state
+    console.log("useYieldVault state:", {
+        address,
+        chainId,
+        isConnected: !!address,
+        assetAddress,
+        vaultAddress,
+        usdcBalance: usdcBalance?.toString(),
+        usdcAllowance: usdcAllowance?.toString(),
+        isApproving: isApprovePending || isApproveConfirming,
+        isDepositing: isDepositPending || isDepositConfirming,
+        approveHash,
+        depositHash,
+        isApproveSuccess,
+        isDepositSuccess,
     });
 
     // Write contract hooks
@@ -119,37 +140,33 @@ export const useYieldVault = ({
     } = useWriteContract();
 
     // Wait for approve transaction
-    const { isLoading: isApproveConfirming } = useWaitForTransactionReceipt({
-        hash: approveHash,
-    });
+    const { isLoading: isApproveConfirming, isSuccess: isApproveSuccess } =
+        useWaitForTransactionReceipt({
+            hash: approveHash,
+        });
 
     // Wait for deposit transaction
-    const {
-        isLoading: isDepositConfirming,
-        isSuccess: isDepositSuccess,
-        data: depositReceipt,
-    } = useWaitForTransactionReceipt({
-        hash: depositHash,
-    });
+    const { isLoading: isDepositConfirming, isSuccess: isDepositSuccess } =
+        useWaitForTransactionReceipt({
+            hash: depositHash,
+        });
 
-    // Handle deposit success
-    useEffect(() => {
-        if (isDepositSuccess && depositStatus === "depositing") {
-            setDepositStatus("success");
-            // Refetch balances
-            refetchShares();
-            refetchUsdcBalance();
-            refetchAllowance();
-        }
-    }, [
+    // Debug wallet connection state
+    console.log("useYieldVault state:", {
+        address,
+        chainId,
+        isConnected: !!address,
+        assetAddress,
+        vaultAddress,
+        usdcBalance: usdcBalance?.toString(),
+        usdcAllowance: usdcAllowance?.toString(),
+        isApproving: isApprovePending || isApproveConfirming,
+        isDepositing: isDepositPending || isDepositConfirming,
+        approveHash,
+        depositHash,
+        isApproveSuccess,
         isDepositSuccess,
-        depositStatus,
-        refetchShares,
-        refetchUsdcBalance,
-        refetchAllowance,
-    ]);
-
-    // Deposit function
+    }); // Deposit function
     const deposit = useCallback(
         async (amount: string) => {
             if (!address || !assetAddress) {
@@ -171,43 +188,93 @@ export const useYieldVault = ({
                     return;
                 }
 
-                // Check if approval is needed
-                const needsApproval =
-                    !usdcAllowance || amountInWei > usdcAllowance;
+                // Check if approval is needed (add buffer for gas efficiency)
+                const currentAllowance = usdcAllowance || 0n;
+                const needsApproval = currentAllowance < amountInWei;
+
+                console.log("Deposit check:", {
+                    amount: amount,
+                    amountInWei: amountInWei.toString(),
+                    currentAllowance: currentAllowance.toString(),
+                    needsApproval,
+                    usdcBalance: usdcBalance?.toString(),
+                });
 
                 if (needsApproval) {
+                    console.log("Requesting USDC approval...");
                     setDepositStatus("approving");
 
-                    // Approve USDC for vault
-                    approveWrite({
-                        address: assetAddress as `0x${string}`,
-                        abi: erc20Abi,
-                        functionName: "approve",
-                        args: [vaultAddress, amountInWei],
-                    });
+                    try {
+                        // Approve a large amount to avoid repeated approvals
+                        const approvalAmount = parseUnits("1000000", 6); // Approve 1M USDC
 
-                    // Wait for approval confirmation
-                    await new Promise<void>((resolve, reject) => {
-                        const checkApproval = setInterval(async () => {
-                            const newAllowance = await refetchAllowance();
-                            if (
-                                newAllowance.data &&
-                                newAllowance.data >= amountInWei
-                            ) {
-                                clearInterval(checkApproval);
-                                resolve();
+                        console.log("Sending approval transaction...");
+                        approveWrite({
+                            address: assetAddress as `0x${string}`,
+                            abi: erc20Abi,
+                            functionName: "approve",
+                            args: [vaultAddress, approvalAmount],
+                        });
+
+                        // Wait for the transaction hash to be available
+                        let hash = approveHash;
+                        if (!hash) {
+                            // Wait up to 5 seconds for the hash to be set
+                            for (let i = 0; i < 50; i++) {
+                                await new Promise((resolve) =>
+                                    setTimeout(resolve, 100)
+                                );
+                                if (approveHash) {
+                                    hash = approveHash;
+                                    break;
+                                }
                             }
-                        }, 1000);
+                        }
 
-                        // Timeout after 60 seconds
-                        setTimeout(() => {
-                            clearInterval(checkApproval);
-                            reject(new Error("Approval timeout"));
-                        }, 60000);
-                    });
+                        if (!hash) {
+                            throw new Error(
+                                "Failed to send approval transaction"
+                            );
+                        }
+
+                        console.log("Waiting for approval confirmation...");
+                        // Wait for approval to complete
+                        await new Promise<void>((resolve, reject) => {
+                            const checkConfirmation = setInterval(() => {
+                                if (isApproveSuccess) {
+                                    console.log("Approval confirmed!");
+                                    clearInterval(checkConfirmation);
+                                    resolve();
+                                }
+                            }, 2000);
+
+                            setTimeout(() => {
+                                clearInterval(checkConfirmation);
+                                reject(
+                                    new Error(
+                                        "Approval timeout - please try again"
+                                    )
+                                );
+                            }, 60000);
+                        });
+
+                        // Refetch allowance after approval
+                        console.log("Refetching allowance...");
+                        await refetchAllowance();
+                    } catch (approvalError) {
+                        console.error("Approval failed:", approvalError);
+                        setErrorMessage(
+                            approvalError instanceof Error
+                                ? approvalError.message
+                                : "Failed to approve USDC spending"
+                        );
+                        setDepositStatus("error");
+                        return;
+                    }
                 }
 
                 // Proceed with deposit
+                console.log("Proceeding with deposit...");
                 setDepositStatus("depositing");
 
                 depositWrite({
@@ -216,6 +283,27 @@ export const useYieldVault = ({
                     functionName: "deposit",
                     args: [amountInWei, address],
                 });
+
+                // Wait for the deposit transaction hash to be available
+                let depositTxHash = depositHash;
+                if (!depositTxHash) {
+                    // Wait up to 5 seconds for the hash to be set
+                    for (let i = 0; i < 50; i++) {
+                        await new Promise((resolve) =>
+                            setTimeout(resolve, 100)
+                        );
+                        if (depositHash) {
+                            depositTxHash = depositHash;
+                            break;
+                        }
+                    }
+                }
+
+                if (!depositTxHash) {
+                    throw new Error("Failed to send deposit transaction");
+                }
+
+                console.log("Deposit transaction sent:", depositTxHash);
             } catch (error) {
                 console.error("Deposit error:", error);
                 setErrorMessage(
@@ -234,6 +322,9 @@ export const useYieldVault = ({
             approveWrite,
             depositWrite,
             refetchAllowance,
+            approveHash,
+            isApproveSuccess,
+            depositHash,
         ]
     );
 

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useYieldVault } from "@/hooks/useYieldVault";
-import { useAccount } from "wagmi";
 import {
     SUPPORTED_CHAINS,
     type SUPPORTED_CHAINS_IDS,
@@ -21,11 +20,10 @@ import {
 } from "lucide-react";
 
 // TODO: Replace with actual deployed vault address from environment variable
-const VAULT_ADDRESS = (import.meta.env.VITE_VAULT_ADDRESS ||
-    "0x0000000000000000000000000000000000000000") as `0x${string}`;
+const VAULT_ADDRESS_BASE = (import.meta.env.VITE_VAULT_ADDRESS_BASE ||
+    "0xd9a8d0c0cfcb7ce6d70a9d2674bea338e7c5223f") as `0x${string}`;
 
 const DepositCard = () => {
-    const { address, chain: connectedChain } = useAccount();
     const {
         deposit: depositToVault,
         errorMessage,
@@ -36,13 +34,16 @@ const DepositCard = () => {
         usdcBalance,
         userAssets,
         formatAssets,
-    } = useYieldVault({ vaultAddress: VAULT_ADDRESS });
+    } = useYieldVault({
+        vaultAddress: VAULT_ADDRESS_BASE,
+        chainId: 8453, // Base mainnet
+    });
 
     const [depositInputs, setDepositInputs] = useState<{
         chain: SUPPORTED_CHAINS_IDS | null;
         amount: string | null;
     }>({
-        chain: SUPPORTED_CHAINS.SEPOLIA, // Default to Sepolia where vault is deployed
+        chain: SUPPORTED_CHAINS.BASE, // Default to Base where vault is deployed
         amount: null,
     });
 
@@ -87,7 +88,7 @@ const DepositCard = () => {
                     Deposit Stablecoins
                 </CardTitle>
                 <p className="text-sm text-gray-500 mt-2">
-                    Deposit from any chain to start earning optimized yields
+                    Deposit USDC on Base to start earning optimized yields
                 </p>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -96,7 +97,7 @@ const DepositCard = () => {
                     <div className="space-y-2">
                         <ChainSelect
                             selectedChain={
-                                depositInputs?.chain ?? SUPPORTED_CHAINS.SEPOLIA
+                                depositInputs?.chain ?? SUPPORTED_CHAINS.BASE
                             }
                             handleSelect={(chain) => {
                                 setDepositInputs({ ...depositInputs, chain });

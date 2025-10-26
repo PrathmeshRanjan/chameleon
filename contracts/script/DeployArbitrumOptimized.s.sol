@@ -10,11 +10,11 @@ import {IMorpho} from "../src/interfaces/IMorpho.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
- * @title DeployArbitrum
+ * @title DeployArbitrumOptimized
  * @notice Deploy YieldOptimizerUSDC vault and all protocol adapters on Arbitrum Mainnet
- * @dev This script deploys the complete vault system on Arbitrum Mainnet
+ * @dev This script deploys contracts in separate transactions to avoid gas limits
  */
-contract DeployArbitrum is Script {
+contract DeployArbitrumOptimized is Script {
     // ===== Arbitrum Mainnet Addresses =====
     
     // USDC on Arbitrum Mainnet (verified)
@@ -48,7 +48,7 @@ contract DeployArbitrum is Script {
         address deployer = vm.addr(deployerPrivateKey);
         
         console.log("========================================");
-        console.log("  ARBITRUM MAINNET DEPLOYMENT");
+        console.log("  ARBITRUM MAINNET DEPLOYMENT (OPTIMIZED)");
         console.log("========================================");
         console.log("Deployer:", deployer);
         console.log("Balance:", deployer.balance);
@@ -56,9 +56,9 @@ contract DeployArbitrum is Script {
         console.log("Chain ID:", ARBITRUM_CHAIN_ID);
         console.log("");
         
+        // Deploy vault first
         vm.startBroadcast(deployerPrivateKey);
         
-        // 1. Deploy YieldOptimizerUSDC vault
         console.log("=== Step 1: Deploying YieldOptimizerUSDC Vault ===");
         YieldOptimizerUSDC vault = new YieldOptimizerUSDC(
             IERC20(USDC_ARBITRUM),
@@ -71,7 +71,11 @@ contract DeployArbitrum is Script {
         console.log("  Asset:", vault.asset());
         console.log("");
         
-        // 2. Deploy AaveV3Adapter
+        vm.stopBroadcast();
+        
+        // Deploy adapters in separate transactions
+        vm.startBroadcast(deployerPrivateKey);
+        
         console.log("=== Step 2: Deploying AaveV3Adapter ===");
         AaveV3Adapter aaveAdapter = new AaveV3Adapter(
             AAVE_POOL_ARBITRUM,
@@ -82,54 +86,51 @@ contract DeployArbitrum is Script {
         console.log("  Aave Pool:", address(aaveAdapter.aavePool()));
         console.log("");
         
-        // 3. Deploy CompoundV3Adapter (commented out for now)
-        // CompoundV3Adapter compoundAdapter;
-        // if (COMPOUND_COMET_ARBITRUM != address(0)) {
-        //     console.log("=== Step 3: Deploying CompoundV3Adapter ===");
-        //     compoundAdapter = new CompoundV3Adapter(
-        //         COMPOUND_COMET_ARBITRUM,
-        //         address(vault)
-        //     );
-        //     console.log("CompoundV3Adapter deployed at:", address(compoundAdapter));
-        //     console.log("  Protocol:", compoundAdapter.getProtocolName());
-        //     console.log("");
-        // } else {
-        //     console.log("=== Step 3: Skipping CompoundV3Adapter (address not set) ===");
-        //     console.log("  TODO: Update COMPOUND_COMET_ARBITRUM address in script");
-        //     console.log("");
-        // }
+        vm.stopBroadcast();
         
-        CompoundV3Adapter compoundAdapter; // Placeholder - commented out for now
+        vm.startBroadcast(deployerPrivateKey);
         
-        // 4. Deploy MorphoAdapter
-        // console.log("=== Step 4: Deploying MorphoAdapter ===");
+        console.log("=== Step 3: Deploying CompoundV3Adapter ===");
+        CompoundV3Adapter compoundAdapter = new CompoundV3Adapter(
+            COMPOUND_COMET_ARBITRUM,
+            address(vault)
+        );
+        console.log("CompoundV3Adapter deployed at:", address(compoundAdapter));
+        console.log("  Protocol:", compoundAdapter.getProtocolName());
+        console.log("");
         
-        // // Create market params for USDC supply market on Arbitrum
-        // IMorpho.MarketParams memory marketParams = IMorpho.MarketParams({
-        //     loanToken: USDC_ARBITRUM,
-        //     collateralToken: address(0),
-        //     oracle: address(0),
-        //     irm: MORPHO_IRM_ARBITRUM,
-        //     lltv: 0
-        // });
+        vm.stopBroadcast();
         
-        // MorphoAdapter morphoAdapter = new MorphoAdapter(
-        //     MORPHO_BLUE_ARBITRUM,
-        //     address(vault),
-        //     USDC_ARBITRUM,
-        //     marketParams
-        // );
-        // console.log("MorphoAdapter deployed at:", address(morphoAdapter));
-        // console.log("  Protocol:", morphoAdapter.getProtocolName());
-        // console.log("  Asset:", morphoAdapter.asset());
-        // console.log("");
+        vm.startBroadcast(deployerPrivateKey);
         
-        MorphoAdapter morphoAdapter; // Placeholder - commented out for now
+        console.log("=== Step 4: Deploying MorphoAdapter ===");
         
-        // 5. Register protocols with vault
-        console.log("=== Step 5: Registering Protocols with Vault ===");
+        // Create market params for USDC supply market on Arbitrum
+        IMorpho.MarketParams memory marketParams = IMorpho.MarketParams({
+            loanToken: USDC_ARBITRUM,
+            collateralToken: address(0),
+            oracle: address(0),
+            irm: MORPHO_IRM_ARBITRUM,
+            lltv: 0
+        });
         
-        // Register Aave V3 (always available)
+        MorphoAdapter morphoAdapter = new MorphoAdapter(
+            MORPHO_BLUE_ARBITRUM,
+            address(vault),
+            USDC_ARBITRUM,
+            marketParams
+        );
+        console.log("MorphoAdapter deployed at:", address(morphoAdapter));
+        console.log("  Protocol:", morphoAdapter.getProtocolName());
+        console.log("  Asset:", morphoAdapter.asset());
+        console.log("");
+        
+        vm.stopBroadcast();
+        
+        // Register protocols in separate transactions
+        vm.startBroadcast(deployerPrivateKey);
+        
+        console.log("=== Step 5: Registering Aave V3 Protocol ===");
         vault.addProtocol(
             "Aave V3",
             address(aaveAdapter),
@@ -137,23 +138,29 @@ contract DeployArbitrum is Script {
         );
         console.log("Aave V3 registered as Protocol ID: 0");
         
-        // Register Compound V3 (commented out for now)
-        // if (address(compoundAdapter) != address(0)) {
-        //     vault.addProtocol(
-        //         "Compound V3",
-        //         address(compoundAdapter),
-        //         uint8(ARBITRUM_CHAIN_ID >> 16)
-        //     );
-        //     console.log("Compound V3 registered as Protocol ID: 1");
-        // }
+        vm.stopBroadcast();
         
-        // Register Morpho Blue (commented out for now)
-        // vault.addProtocol(
-        //     "Morpho Blue",
-        //     address(morphoAdapter),
-        //     uint8(ARBITRUM_CHAIN_ID >> 16)
-        // );
-        // console.log("Morpho Blue registered as Protocol ID: 2");
+        vm.startBroadcast(deployerPrivateKey);
+        
+        console.log("=== Step 6: Registering Compound V3 Protocol ===");
+        vault.addProtocol(
+            "Compound V3",
+            address(compoundAdapter),
+            uint8(ARBITRUM_CHAIN_ID >> 16)
+        );
+        console.log("Compound V3 registered as Protocol ID: 1");
+        
+        vm.stopBroadcast();
+        
+        vm.startBroadcast(deployerPrivateKey);
+        
+        console.log("=== Step 7: Registering Morpho Blue Protocol ===");
+        vault.addProtocol(
+            "Morpho Blue",
+            address(morphoAdapter),
+            uint8(ARBITRUM_CHAIN_ID >> 16)
+        );
+        console.log("Morpho Blue registered as Protocol ID: 2");
         console.log("");
         
         vm.stopBroadcast();
@@ -168,37 +175,27 @@ contract DeployArbitrum is Script {
         console.log("\nDeployed Contracts:");
         console.log("- YieldOptimizerUSDC:", address(vault));
         console.log("- AaveV3Adapter:", address(aaveAdapter));
-        if (address(compoundAdapter) != address(0)) {
-            console.log("- CompoundV3Adapter:", address(compoundAdapter));
-        } else {
-            console.log("- CompoundV3Adapter: (commented out for now)");
-        }
-        console.log("- MorphoAdapter: (commented out for now)");
+        console.log("- CompoundV3Adapter:", address(compoundAdapter));
+        console.log("- MorphoAdapter:", address(morphoAdapter));
         console.log("\nConfiguration:");
         console.log("- USDC:", USDC_ARBITRUM);
         console.log("- Aave Pool:", AAVE_POOL_ARBITRUM);
-        console.log("- Compound Comet:", COMPOUND_COMET_ARBITRUM, "(commented out)");
-        console.log("- Morpho Blue:", MORPHO_BLUE_ARBITRUM, "(commented out)");
-        console.log("- Morpho IRM:", MORPHO_IRM_ARBITRUM, "(commented out)");
+        console.log("- Compound Comet:", COMPOUND_COMET_ARBITRUM);
+        console.log("- Morpho Blue:", MORPHO_BLUE_ARBITRUM);
+        console.log("- Morpho IRM:", MORPHO_IRM_ARBITRUM);
         console.log("- Treasury:", deployer);
         console.log("\nProtocol IDs:");
         console.log("- 0: Aave V3");
-        if (address(compoundAdapter) != address(0)) {
-            console.log("- 1: Compound V3");
-        } else {
-            console.log("- 1: Compound V3 (commented out)");
-        }
-        console.log("- 2: Morpho Blue (commented out)");
+        console.log("- 1: Compound V3");
+        console.log("- 2: Morpho Blue");
         console.log("\nNext Steps:");
-        console.log("1. Uncomment and deploy CompoundV3Adapter when ready");
-        console.log("2. Uncomment and deploy MorphoAdapter when ready");
-        console.log("3. Get Arbitrum USDC from bridge.arbitrum.io");
-        console.log("4. Deploy Avail Nexus contract for cross-chain bridging");
-        console.log("5. Update vault's Nexus address: vault.setNexusContract(nexusAddress)");
-        console.log("6. Update .env with: VITE_VAULT_ADDRESS_ARBITRUM=%s", address(vault));
-        console.log("7. Test deposit flow in UI");
-        console.log("8. Set Vincent automation address via setVincentAutomation()");
-        console.log("9. Set proper treasury address via setTreasury()");
+        console.log("1. Get Arbitrum USDC from bridge.arbitrum.io");
+        console.log("2. Deploy Avail Nexus contract for cross-chain bridging");
+        console.log("3. Update vault's Nexus address: vault.setNexusContract(nexusAddress)");
+        console.log("4. Update .env with: VITE_VAULT_ADDRESS_ARBITRUM=%s", address(vault));
+        console.log("5. Test deposit flow in UI");
+        console.log("6. Set Vincent automation address via setVincentAutomation()");
+        console.log("7. Set proper treasury address via setTreasury()");
         console.log("========================================\n");
     }
 }

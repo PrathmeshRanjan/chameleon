@@ -15,11 +15,13 @@ remappings = [
 # RPC endpoints
 [rpc_endpoints]
 base_mainnet = "${BASE_MAINNET_RPC_URL}"
+arbitrum_mainnet = "${ARBITRUM_MAINNET_RPC_URL}"
 sepolia = "${SEPOLIA_RPC_URL}"
 
 # Etherscan configuration
 [etherscan]
 base = { key = "${BASESCAN_API_KEY}", url = "https://api.basescan.org/api" }
+arbitrum = { key = "${ARBISCAN_API_KEY}", url = "https://api.arbiscan.io/api" }
 sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api-sepolia.etherscan.io/api" }
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

@@ -1,202 +1,97 @@
-# Smart Yield Optimizer
+# Chameleon
 
-**Automated yield optimization across multiple chains with real-time monitoring and user-defined guardrails.**
+**Automated cross-chain yield optimization with real-time monitoring and user-defined guardrails.**
 
-## 🎯 Project Overview
+## 🎯 Project Description
 
-Smart Yield Optimizer is a DeFi automation platform that intelligently moves idle stablecoins to the best APY opportunities across any blockchain, leveraging three powerful integrations:
+Chameleon is a DeFi automation platform that intelligently moves idle stablecoins to the best APY opportunities across multiple blockchains. The platform leverages Avail Nexus for seamless cross-chain deposits and Vincent automation for periodic rebalancing with user-controlled permissions.
 
-### Tracks
+Users can deposit USDC from any supported chain through a unified interface, set custom guardrails for risk management (maximum slippage, gas ceilings, minimum APY differentials), and enable automated rebalancing that continuously optimizes their yields. The system monitors APYs across lending protocols like Aave and Compound, tracks gas costs for optimal transaction timing, and provides real-time analytics through a comprehensive dashboard.
 
--   ✅ **Avail Nexus** - Unified cross-chain deposits and seamless Bridge & Execute
--   ✅ **Vincent** - DeFi automation with scoped delegations for weekly/daily rebalancing
--   ✅ **Pyth Network** - Real-time price feeds for APY tracking, gas costs, and slippage estimation
+## 🛠 How It's Made
 
-## 🚀 Features
+### Architecture Overview
 
-### Core Functionality
+The platform consists of three main components: smart contracts for yield optimization, a React frontend for user interaction, and automated backend services for monitoring and rebalancing.
 
-1. **Unified Deposits** - Users deposit USDC/USDT via Avail Nexus from any supported chain
-2. **Automated Rebalancing** - Vincent automation handles periodic rebalancing with user-controlled permissions
-3. **Real-time Monitoring** - Pyth price feeds continuously track:
-    - APYs across lending protocols (Aave, Compound, etc.)
-    - Gas costs for optimal transaction timing
-    - Slippage estimates for swaps
-    - Protocol TVL changes for risk assessment
+### Smart Contracts (Solidity + Foundry)
 
-### Smart Guardrails
+The core smart contracts are built with Solidity 0.8.20 and deployed using Foundry:
 
--   Maximum slippage tolerance
--   Gas cost ceiling
--   Minimum APY differential before rebalancing
--   Protocol whitelist/blacklist
+-   **YieldOptimizer.sol**: Main ERC4626 vault contract that manages user deposits and handles yield farming across protocols
+-   **StrategyManager.sol**: Executes rebalancing strategies based on APY comparisons and user guardrails
+-   **YieldAggregator.sol**: Aggregates yield data from multiple DeFi protocols for optimal strategy selection
 
-### Dashboard
+Contracts are deployed on both Base and Arbitrum networks, with cross-chain communication handled through Avail Nexus bridge contracts.
 
--   Real-time yield comparison across protocols
--   Projected earnings calculator
--   Transaction history
--   Rebalancing analytics
+### Frontend (React + TypeScript + Vite)
 
-## 🛠 Tech Stack
+The user interface is built with modern React 19 and TypeScript:
 
-### Smart Contracts (Foundry)
+-   **React 19** with hooks for state management and component lifecycle
+-   **Vite** for fast development and optimized production builds
+-   **TailwindCSS + shadcn/ui** for responsive, accessible component design
+-   **Wagmi + ConnectKit** for seamless wallet connections and transaction management
+-   **Avail Nexus SDK** for cross-chain deposit and bridge operations
 
--   Solidity ^0.8.20
--   Foundry for development and testing
--   Avail Nexus integration
--   Vincent delegation contracts
--   Pyth oracle integration
+### Key Technical Integrations
 
-### Frontend (Vite + React)
+**Avail Nexus Integration:**
 
--   React 19 + TypeScript
--   Vite for fast development
--   TailwindCSS + shadcn/ui components
--   Wagmi + ConnectKit for wallet connections
--   @avail-project/nexus-core SDK
+-   Provides unified cross-chain deposits from any supported blockchain
+-   Handles Bridge & Execute operations for seamless asset transfers
+-   Manages cross-chain communication between Base and Arbitrum vaults
 
-## 📦 Project Structure
+**Vincent Automation:**
 
-```
-smart-yield-optimizer/
-├── contracts/                 # Foundry smart contracts
-│   ├── src/
-│   │   ├── YieldOptimizer.sol       # Main optimizer contract
-│   │   ├── StrategyManager.sol      # Strategy execution
-│   │   ├── YieldAggregator.sol      # APY data aggregation
-│   │   └── interfaces/              # Protocol interfaces
-│   ├── script/
-│   │   └── Deploy.s.sol             # Deployment scripts
-│   └── test/                        # Contract tests
-├── src/                       # Frontend application
-│   ├── components/
-│   │   ├── dashboard/               # Dashboard components
-│   │   ├── deposit/                 # Deposit interface
-│   │   ├── settings/                # User settings & guardrails
-│   │   └── ui/                      # Shared UI components
-│   ├── hooks/
-│   │   ├── useYieldData.ts          # Pyth yield data hook
-│   │   ├── useAvailNexus.ts         # Nexus integration
-│   │   └── useVincentAutomation.ts  # Vincent automation
-│   ├── providers/
-│   │   ├── NexusProvider.tsx
-│   │   └── Web3Provider.tsx
-│   └── types/                       # TypeScript definitions
-└── public/
-```
+-   Implements scoped delegations for user-controlled automation
+-   Handles periodic rebalancing based on user-defined parameters
+-   Provides gas-optimized transaction execution
 
-## 🏗 Setup Instructions
+### Development Workflow
 
-### Prerequisites
-
--   Node.js v18+ and pnpm
--   Foundry (for smart contracts)
--   WalletConnect Project ID
-
-### 1. Install Dependencies
+The project uses a monorepo structure with pnpm for dependency management:
 
 ```bash
-# Install frontend dependencies
+# Install all dependencies
 pnpm install
 
-# Install Foundry dependencies (if not already done)
-cd contracts && forge install
-```
+# Start development server
+pnpm dev
 
-### 2. Environment Setup
-
-Copy `.env.example` to `.env` and configure:
-
-```bash
-cp .env.example .env
-```
-
-Add your configuration:
-
-```env
-VITE_WALLETCONNECT_PROJECT_ID=your_project_id_here
-```
-
-### 3. Smart Contracts
-
-```bash
 # Build contracts
 pnpm contracts:build
 
-# Run tests
+# Run contract tests
 pnpm contracts:test
 
-# Deploy (set RPC_URL and PRIVATE_KEY first)
+# Deploy contracts
 pnpm contracts:deploy
 ```
 
-### 4. Run Development Server
+### Smart Contract Deployment
 
-```bash
-pnpm dev
-```
+Contracts are deployed to both Base and Arbitrum mainnets:
 
-Visit `http://localhost:5173`
+-   **Base Vault**: `0xD9a8D0C0CFCb7ce6D70a9D2674beA338e7C5223f`
+-   **Arbitrum Vault**: `0x32B740171aAA13D7bFecC44c3C87FB1F4c5f819A`
+-   **Nexus Bridge**: `0x10d699a7299cbb5d3fb46296dc3aadd555701bed`
 
-## 🎮 Usage
+### Security & Testing
 
-1. **Connect Wallet** - Connect your wallet using ConnectKit
-2. **Initialize Nexus** - Click "Connect Nexus" to initialize cross-chain functionality
-3. **Deposit Funds** - Deposit USDC/USDT from any supported chain
-4. **Set Guardrails** - Configure your risk parameters:
-    - Max slippage tolerance
-    - Gas ceiling
-    - Minimum APY delta for rebalancing
-5. **Enable Automation** - Grant Vincent delegation with scoped permissions
-6. **Monitor** - Watch real-time yield opportunities and automated rebalancing
+-   Comprehensive smart contract testing with Foundry
+-   Frontend testing with Vitest and React Testing Library
+-   Gas optimization and security audits planned for mainnet deployment
+-   User guardrails prevent unauthorized transactions and excessive risk
 
-## 🔗 Integrations
+### Notable Technical Decisions
 
-### Avail Nexus
+**Cross-Chain Architecture**: Using Avail Nexus eliminates the need for complex bridge management, allowing users to deposit from any chain while the system optimizes yields on the best-performing networks.
 
--   Unified deposits from any chain
--   Bridge & Execute for seamless transfers
--   XCS Swaps for token conversions
+**ERC4626 Standard**: Vault contracts follow the ERC4626 standard for tokenized yield vaults, ensuring compatibility with DeFi ecosystems and providing standard interfaces for yield farming.
 
-### Vincent Automation
+**Scoped Automation**: Vincent delegations are limited to specific functions and parameters, giving users control over automation while enabling efficient rebalancing.
 
--   Scoped delegations for user control
--   Automated rebalancing execution
--   Configurable time intervals
+**Real-Time Monitoring**: The system continuously monitors protocol APYs, gas costs, and TVL changes to make data-driven rebalancing decisions.
 
-### Pyth Network
-
--   Real-time APY data feeds
--   Gas price oracles
--   Slippage estimation
--   Protocol TVL monitoring
-
-## 🧪 Testing
-
-```bash
-# Frontend tests
-pnpm test
-
-# Smart contract tests
-pnpm contracts:test
-
-# Coverage
-cd contracts && forge coverage
-```
-
-## 📝 License
-
-MIT
-
-## 🤝 Contributing
-
-Contributions welcome! Please read our contributing guidelines first.
-
-## 🔐 Security
-
-This project is in active development. Do not use with real funds on mainnet without proper audits.
-
-## 📧 Contact
-
-For questions and support, please open an issue on GitHub.
+This architecture enables a seamless, secure, and efficient yield optimization experience that puts users in control of their DeFi automation.
