@@ -1,0 +1,19 @@
+{
+    "name": "nexus-bridge-test",
+    "version": "1.0.0",
+    "description": "Test Avail Nexus cross-chain bridging for Chameleon Protocol",
+    "main": "bridge.js",
+    "scripts": {
+        "bridge": "ts-node bridge.ts"
+    },
+    "dependencies": {
+        "@avail-project/nexus-core": "latest",
+        "viem": "^2.0.0",
+        "dotenv": "^16.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "ts-node": "^10.9.0",
+        "typescript": "^5.0.0"
+    }
+}
