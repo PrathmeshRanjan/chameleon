@@ -6,21 +6,31 @@ import react from "@vitejs/plugin-react";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    nodePolyfills({
-      exclude: ["fs"],
-      protocolImports: true,
-    }),
-  ],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-      buffer: "vite-plugin-node-polyfills/shims/buffer",
-      global: "vite-plugin-node-polyfills/shims/global",
-      process: "vite-plugin-node-polyfills/shims/process",
+    plugins: [
+        react(),
+        tailwindcss(),
+        nodePolyfills({
+            exclude: ["fs"],
+            protocolImports: true,
+        }),
+    ],
+    resolve: {
+        alias: {
+            "@": path.resolve(__dirname, "./src"),
+            buffer: "vite-plugin-node-polyfills/shims/buffer",
+            global: "vite-plugin-node-polyfills/shims/global",
+            process: "vite-plugin-node-polyfills/shims/process",
+        },
     },
-  },
-  envPrefix: ["VITE_"],
+    server: {
+        proxy: {
+            // Proxy RPC requests to avoid CORS issues
+            "/rpc": {
+                target: "https://11155111.rpc.thirdweb.com",
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/rpc/, ""),
+            },
+        },
+    },
+    envPrefix: ["VITE_"],
 });

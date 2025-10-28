@@ -29,7 +29,7 @@ const NexusProvider = ({ children }: { children: React.ReactNode }) => {
     const sdk = useMemo(
         () =>
             new NexusSDK({
-                network: "mainnet",
+                network: "testnet", // Use testnet for Sepolia/Base Sepolia
                 debug: true,
             }),
         []

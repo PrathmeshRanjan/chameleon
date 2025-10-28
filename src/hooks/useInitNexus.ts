@@ -63,19 +63,50 @@ const useInitNexus = (sdk: NexusSDK) => {
             // Delay hook attachment to prevent immediate network operations
             setTimeout(() => {
                 sdk.setOnAllowanceHook((data: OnAllowanceHookData) => {
-                    console.log("Nexus allowance hook triggered:", data);
-                    // Store the data but don't automatically process it
+                    console.log("🔓 Nexus allowance hook triggered");
+                    console.log("Allowance data:", {
+                        sources: data.sources,
+                        hasAllow: !!data.allow,
+                        hasDeny: !!data.deny,
+                    });
+                    // Store the data
                     allowanceRefCallback.current = data;
+                    // Auto-approve allowance for testnet
+                    console.log("✅ Auto-approving allowance...");
+                    try {
+                        data.allow();
+                        console.log(
+                            "✅ Allowance approved, waiting for user signature..."
+                        );
+                    } catch (error) {
+                        console.error("❌ Error approving allowance:", error);
+                    }
                 });
 
                 sdk.setOnIntentHook((data: OnIntentHookData) => {
-                    console.log("Nexus intent hook triggered:", data);
-                    // Store the data but don't automatically process it
+                    console.log("🎯 Nexus intent hook triggered");
+                    console.log("Intent data:", {
+                        intent: data.intent,
+                        hasAllow: !!data.allow,
+                        hasDeny: !!data.deny,
+                        hasRefresh: !!data.refresh,
+                    });
+                    // Store the data
                     intentRefCallback.current = data;
+                    // Auto-approve intent to proceed with bridge
+                    console.log("✅ Auto-approving intent...");
+                    try {
+                        data.allow();
+                        console.log(
+                            "✅ Intent approved, proceeding with bridge transactions..."
+                        );
+                    } catch (error) {
+                        console.error("❌ Error approving intent:", error);
+                    }
                 });
 
                 setHooksAttached(true);
-                console.log("Nexus event hooks attached");
+                console.log("✅ Nexus event hooks attached");
             }, 2000); // Delay by 2 seconds to let initialization settle
         }
     };

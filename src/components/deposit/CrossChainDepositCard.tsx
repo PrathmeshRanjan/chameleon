@@ -1,20 +1,44 @@
 import { useState, useEffect, useCallback } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from "wagmi";
+import {
+    useAccount,
+    useWriteContract,
+    useWaitForTransactionReceipt,
+    useSwitchChain,
+} from "wagmi";
 import { parseUnits, formatUnits } from "viem";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Circle, Loader2, ArrowRight, AlertCircle } from "lucide-react";
+import {
+    CheckCircle2,
+    Circle,
+    Loader2,
+    ArrowRight,
+    AlertCircle,
+} from "lucide-react";
 import { useNexus } from "@/providers/NexusProvider";
 
-// Contract addresses from deployment
-const SEPOLIA_VAULT = "0xa36Fa2Ad2d397FC89D2e0a39C8E673AdC6127c2a";
-const USDC_SEPOLIA = "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8";
-const BASE_SEPOLIA_AAVE_ADAPTER = "0x73951d806B2f2896e639e75c413DD09bA52f61a6";
-const USDC_BASE_SEPOLIA = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+// Contract addresses - REVERSED FLOW: Base Sepolia → Sepolia
+// Base Sepolia (Source - where user deposits)
+const BASE_SEPOLIA_VAULT = "0x34Cc894DcF62f3A2c212Ca9275ed2D08393b0E81";
+const USDC_BASE_SEPOLIA = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"; // Nexus-supported USDC
+
+// Sepolia (Destination - where funds are bridged to)
+const SEPOLIA_AAVE_ADAPTER = "0xb472f5441d3A8cee6B5aca7Cda4363F371f88A81";
+const USDC_SEPOLIA = "0xf08A50178dfcDe18524640EA6618a1f965821715"; // Nexus-supported USDC
+
+// OLD FLOW (Sepolia → Base Sepolia)
+// const SEPOLIA_VAULT = "0xaB1c63c782ee89913213e5e6cd15955Db0A0B366";
+// const BASE_SEPOLIA_AAVE_ADAPTER = "0x73951d806B2f2896e639e75c413DD09bA52f61a6";
 
 // ABIs
 const VAULT_ABI = [
@@ -73,28 +97,40 @@ type Step =
 export default function CrossChainDepositCard() {
     const { address, chain } = useAccount();
     const { switchChain } = useSwitchChain();
-    const { nexusSDK } = useNexus();
+    const { nexusSDK, handleInit } = useNexus();
     const [amount, setAmount] = useState("");
     const [currentStep, setCurrentStep] = useState<Step>("idle");
     const [txHashes, setTxHashes] = useState<Record<string, string>>({});
     const [error, setError] = useState<string>("");
+    const [bridging, setBridging] = useState(false);
+    const [bridgeProgress, setBridgeProgress] = useState<string>("");
 
     // Log connection status
     useEffect(() => {
-        console.log("Wallet status:", { 
-            address, 
-            chainId: chain?.id, 
+        console.log("Wallet status:", {
+            address,
+            chainId: chain?.id,
             chainName: chain?.name,
-            isConnected: !!address 
+            isConnected: !!address,
         });
     }, [address, chain]);
 
-    const { writeContract: approveUSDC, data: approveHash, error: approveError, isPending: isApprovePending } =
-        useWriteContract();
-    const { writeContract: depositToVault, data: depositHash, error: depositError } =
-        useWriteContract();
-    const { writeContract: executeRebalance, data: rebalanceHash, error: rebalanceError } =
-        useWriteContract();
+    const {
+        writeContract: approveUSDC,
+        data: approveHash,
+        error: approveError,
+        isPending: _isApprovePending,
+    } = useWriteContract();
+    const {
+        writeContract: depositToVault,
+        data: depositHash,
+        error: depositError,
+    } = useWriteContract();
+    const {
+        writeContract: executeRebalance,
+        data: rebalanceHash,
+        error: rebalanceError,
+    } = useWriteContract();
 
     // Log errors
     useEffect(() => {
@@ -124,13 +160,22 @@ export default function CrossChainDepositCard() {
     const { isSuccess: approveSuccess } = useWaitForTransactionReceipt({
         hash: approveHash,
     });
+
+    // Log approval status changes
+    useEffect(() => {
+        console.log("Approval status changed:", {
+            approveHash,
+            approveSuccess,
+            currentStep,
+        });
+    }, [approveHash, approveSuccess, currentStep]);
     const { isSuccess: depositSuccess } = useWaitForTransactionReceipt({
         hash: depositHash,
     });
-    const { 
-        isSuccess: rebalanceSuccess, 
+    const {
+        isSuccess: rebalanceSuccess,
         isLoading: rebalanceConfirming,
-        isError: rebalanceReceiptError 
+        isError: rebalanceReceiptError,
     } = useWaitForTransactionReceipt({
         hash: rebalanceHash,
     });
@@ -143,11 +188,11 @@ export default function CrossChainDepositCard() {
             const amountWei = parseUnits(amount, 6);
 
             depositToVault({
-                address: SEPOLIA_VAULT as `0x${string}`,
+                address: BASE_SEPOLIA_VAULT as `0x${string}`,
                 abi: VAULT_ABI,
                 functionName: "deposit",
                 args: [amountWei, address],
-                chainId: 11155111, // Sepolia
+                chainId: 84532, // Base Sepolia
             });
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Deposit failed");
@@ -164,13 +209,13 @@ export default function CrossChainDepositCard() {
             console.log("Executing rebalance with manual gas limit...");
 
             // Execute cross-chain rebalance
-            // fromProtocol: 0 (Aave Sepolia), toProtocol: 1 (Aave Base Sepolia)
+            // fromProtocol: 0 (Aave Base Sepolia), toProtocol: 1 (Aave Sepolia)
             executeRebalance({
-                address: SEPOLIA_VAULT as `0x${string}`,
+                address: BASE_SEPOLIA_VAULT as `0x${string}`,
                 abi: VAULT_ABI,
                 functionName: "executeRebalance",
                 args: [address, 0, 1, amountWei],
-                chainId: 11155111, // Sepolia
+                chainId: 84532, // Base Sepolia
                 gas: 500000n, // Manual gas limit to avoid exceeding cap
                 maxFeePerGas: 50000000000n, // 50 gwei - higher gas price for faster confirmation
                 maxPriorityFeePerGas: 2000000000n, // 2 gwei priority fee
@@ -184,12 +229,20 @@ export default function CrossChainDepositCard() {
     // Handle approve success
     useEffect(() => {
         if (approveSuccess && currentStep === "approve" && approveHash) {
+            console.log("✅ Approval confirmed! Moving to deposit step...");
             setTxHashes((prev) => ({ ...prev, approve: approveHash }));
-            // Automatically move to deposit step and trigger deposit
+            // Automatically move to deposit step
             setCurrentStep("deposit");
+        }
+    }, [approveSuccess, currentStep, approveHash]);
+
+    // Auto-trigger deposit when step becomes "deposit" after approval
+    useEffect(() => {
+        if (currentStep === "deposit" && approveSuccess && !depositHash) {
+            console.log("🚀 Auto-triggering deposit...");
             handleDeposit();
         }
-    }, [approveSuccess, currentStep, approveHash, handleDeposit]);
+    }, [currentStep, approveSuccess, depositHash, handleDeposit]);
 
     // Handle deposit success
     useEffect(() => {
@@ -209,70 +262,237 @@ export default function CrossChainDepositCard() {
         }
     }, [rebalanceSuccess, currentStep, rebalanceHash]);
 
-    const handleApprove = async () => {
-        if (!amount || !address) {
-            console.error("Missing amount or address", { amount, address });
-            setError("Please connect wallet and enter amount");
-            return;
-        }
-
-        // Check if on correct chain
-        if (chain?.id !== 11155111) {
-            console.log("Wrong chain, switching to Sepolia...");
-            try {
-                await switchChain({ chainId: 11155111 });
-            } catch (err) {
-                console.error("Chain switch error:", err);
-                setError("Please switch to Sepolia network");
-                return;
-            }
-        }
+    const handleApprove = useCallback(async () => {
+        if (!amount || !address) return;
 
         try {
-            setError("");
-            setCurrentStep("approve");
+            if (chain?.id !== 84532) {
+                console.log("Switching to Base Sepolia (chainId: 84532)...");
+                await switchChain({ chainId: 84532 });
+                return;
+            }
 
             const amountWei = parseUnits(amount, 6);
-            console.log("Approving USDC:", {
-                amount,
-                amountWei: amountWei.toString(),
-                vault: SEPOLIA_VAULT,
-                address,
-                chainId: chain?.id
-            });
 
-            const result = approveUSDC({
-                address: USDC_SEPOLIA as `0x${string}`,
+            console.log("Approving USDC on Base Sepolia...");
+
+            approveUSDC({
+                address: USDC_BASE_SEPOLIA as `0x${string}`,
                 abi: ERC20_ABI,
                 functionName: "approve",
-                args: [SEPOLIA_VAULT as `0x${string}`, amountWei],
-                chainId: 11155111, // Sepolia
+                args: [BASE_SEPOLIA_VAULT as `0x${string}`, amountWei],
+                chainId: 84532,
             });
-            
-            console.log("ApproveUSDC called, result:", result);
+
+            // Set step to approve after initiating transaction
+            setCurrentStep("approve");
         } catch (err: unknown) {
-            console.error("Approval error:", err);
             setError(err instanceof Error ? err.message : "Approval failed");
             setCurrentStep("idle");
         }
-    };
+    }, [amount, address, chain?.id, approveUSDC, switchChain]);
+    const handleBridge = async () => {
+        if (!nexusSDK) {
+            setError("Nexus SDK not initialized. Initializing...");
+            try {
+                await handleInit();
+                // Retry after initialization
+                setTimeout(() => handleBridge(), 2000);
+            } catch {
+                setError(
+                    "Failed to initialize Nexus SDK. Please refresh and try again."
+                );
+            }
+            return;
+        }
 
-    const handleBridge = () => {
-        // Open Nexus Dashboard with pre-filled parameters
-        alert(
-            `🌉 Manual Bridge Step:\n\n` +
-                `1. Go to: https://nexus.availproject.org\n` +
-                `2. Bridge ${amount} USDC from Sepolia to Base Sepolia\n` +
-                `3. Execute on Base Sepolia:\n` +
-                `   Contract: ${BASE_SEPOLIA_AAVE_ADAPTER}\n` +
-                `   Function: deposit(address,uint256)\n` +
-                `   Args: ${USDC_BASE_SEPOLIA}, ${parseUnits(amount, 6)}\n\n` +
-                `Your event monitor will show when complete!`
-        );
+        if (!amount || !address) {
+            setError("Missing amount or address");
+            return;
+        }
 
-        // Open Nexus in new window
-        window.open("https://nexus.availproject.org", "_blank");
-        setCurrentStep("complete");
+        setBridging(true);
+        setBridgeProgress("Checking supported tokens...");
+        setError("");
+
+        try {
+            const amountWei = parseUnits(amount, 6).toString();
+
+            console.log("Nexus SDK initialized:", nexusSDK.isInitialized());
+            console.log("Attempting bridge with params:", {
+                token: "USDC",
+                amount: amountWei,
+                fromChain: 84532, // Base Sepolia
+                toChain: 11155111, // Sepolia
+                adapter: SEPOLIA_AAVE_ADAPTER,
+            });
+
+            setBridgeProgress("Initiating cross-chain bridge...");
+
+            // Subscribe to ALL Nexus events for comprehensive tracking
+            if (nexusSDK.nexusEvents) {
+                // Expected steps
+                nexusSDK.nexusEvents.on(
+                    "bridgeAndExecute:expectedSteps",
+                    (steps: unknown) => {
+                        console.log("📋 Bridge steps:", steps);
+                        const stepsArray = Array.isArray(steps) ? steps : [];
+                        setBridgeProgress(
+                            `Preparing bridge: ${stepsArray.length} steps total`
+                        );
+                    }
+                );
+
+                // Step completion
+                nexusSDK.nexusEvents.on(
+                    "bridgeAndExecute:stepComplete",
+                    (step: {
+                        stepNumber?: number;
+                        totalSteps?: number;
+                        type?: string;
+                    }) => {
+                        console.log("✅ Step complete:", step);
+                        setBridgeProgress(
+                            `Progress: Step ${step.stepNumber}/${
+                                step.totalSteps
+                            } - ${step.type || "Processing"}`
+                        );
+                    }
+                );
+
+                // Bridge started
+                nexusSDK.nexusEvents.on(
+                    "bridgeAndExecute:started",
+                    (data: unknown) => {
+                        console.log("🌉 Bridge started:", data);
+                        setBridgeProgress("Bridge transaction initiated...");
+                    }
+                );
+
+                // Transaction submitted
+                nexusSDK.nexusEvents.on(
+                    "bridgeAndExecute:txSubmitted",
+                    (data: unknown) => {
+                        console.log("📤 Transaction submitted:", data);
+                        setBridgeProgress(
+                            "Transaction submitted, waiting for confirmation..."
+                        );
+                    }
+                );
+
+                // Transaction confirmed
+                nexusSDK.nexusEvents.on(
+                    "bridgeAndExecute:txConfirmed",
+                    (data: unknown) => {
+                        console.log("✅ Transaction confirmed:", data);
+                        setBridgeProgress(
+                            "Transaction confirmed! Finalizing bridge..."
+                        );
+                    }
+                );
+
+                // Bridge completed
+                nexusSDK.nexusEvents.on(
+                    "bridgeAndExecute:completed",
+                    (data: unknown) => {
+                        console.log("🎉 Bridge completed:", data);
+                        setBridgeProgress("Bridge completed successfully!");
+                    }
+                );
+
+                // Transaction requests
+                nexusSDK.nexusEvents.on(
+                    "transactionRequest",
+                    (data: unknown) => {
+                        console.log("💳 Transaction request:", data);
+                        setBridgeProgress("⏳ Waiting for wallet signature...");
+                    }
+                );
+
+                // Errors
+                nexusSDK.nexusEvents.on("error", (error: unknown) => {
+                    console.error("❌ Nexus error event:", error);
+                    setBridgeProgress("Error occurred, check console");
+                });
+
+                // Generic progress updates
+                nexusSDK.nexusEvents.on("progress", (data: unknown) => {
+                    console.log("📊 Progress update:", data);
+                });
+            }
+
+            // Execute bridge (without auto-deposit, since adapter requires onlyVault)
+            // The USDC will arrive in the user's wallet on Sepolia
+            // User can then manually deposit into vault or we handle via Vincent automation
+            const result = await nexusSDK.bridgeAndExecute({
+                token: "USDC",
+                amount: amountWei,
+                toChainId: 11155111, // Sepolia
+                sourceChains: [84532], // Base Sepolia
+                recipient: address, // Send to user's wallet on Sepolia
+                waitForReceipt: true,
+                requiredConfirmations: 2,
+            });
+
+            console.log("🎯 Bridge result:", result);
+
+            if (result.success) {
+                console.log("✅ Bridge successful!");
+                if (result.bridgeTxHash) {
+                    console.log("🔗 Bridge transaction:", result.bridgeTxHash);
+                    setTxHashes((prev) => ({
+                        ...prev,
+                        bridge: result.bridgeTxHash,
+                    }));
+                }
+                setBridgeProgress("✅ Bridge completed successfully!");
+                setCurrentStep("complete");
+            } else {
+                console.error("❌ Bridge failed:", result.error);
+                throw new Error(result.error || "Bridge failed");
+            }
+        } catch (err: unknown) {
+            console.error("❌ Bridge error:", err);
+            const errorMessage =
+                err instanceof Error ? err.message : "Unknown error";
+
+            // Check for specific error types
+            const isInsufficientBalance = errorMessage.includes(
+                "Insufficient balance"
+            );
+            const isCorsError =
+                errorMessage.includes("CORS") ||
+                errorMessage.includes("fetch") ||
+                errorMessage.includes("network");
+
+            if (isInsufficientBalance) {
+                setError(
+                    `❌ Insufficient USDC balance on Base Sepolia.\n\n` +
+                        `⚠️ Note: If you deposited into the vault, those funds are locked.\n` +
+                        `You need USDC in your wallet (not vault) to bridge.\n\n` +
+                        `Options:\n` +
+                        `1. Skip the vault deposit step and bridge directly\n` +
+                        `2. Use the Manual Bridge button below`
+                );
+            } else if (isCorsError) {
+                setError(
+                    `🌐 Network Error: CORS restriction detected.\n\n` +
+                        `The Nexus SDK cannot make RPC calls from localhost due to CORS policies.\n\n` +
+                        `💡 Solutions:\n` +
+                        `1. Use browser extension "Allow CORS" for development\n` +
+                        `2. Bridge manually using Nexus Dashboard\n` +
+                        `3. Deploy to production (CORS issues are less common)\n\n` +
+                        `👉 For now, please use the Manual Bridge button below.`
+                );
+            } else {
+                setError(
+                    `Bridge failed: ${errorMessage}\n\nℹ️ Please use the Nexus Dashboard manually: https://nexus.availproject.org`
+                );
+            }
+            setBridgeProgress("");
+        } finally {
+            setBridging(false);
+        }
     };
 
     const getStepStatus = (step: Step) => {
@@ -309,8 +529,8 @@ export default function CrossChainDepositCard() {
             <CardHeader>
                 <CardTitle>Cross-Chain Yield Deposit</CardTitle>
                 <CardDescription>
-                    Deposit USDC on Sepolia → Bridge via Avail Nexus → Stake on
-                    Base Sepolia Aave
+                    Deposit USDC on Base Sepolia → Bridge via Avail Nexus to
+                    Sepolia
                 </CardDescription>
             </CardHeader>
 
@@ -339,13 +559,11 @@ export default function CrossChainDepositCard() {
                     <StepIndicator
                         title="Approve"
                         status={getStepStatus("approve")}
-                        hash={txHashes.approve}
                     />
                     <ArrowRight className="h-4 w-4 text-gray-400" />
                     <StepIndicator
                         title="Deposit"
                         status={getStepStatus("deposit")}
-                        hash={txHashes.deposit}
                     />
                     <ArrowRight className="h-4 w-4 text-gray-400" />
                     <StepIndicator
@@ -374,8 +592,8 @@ export default function CrossChainDepositCard() {
                                 step="0.000001"
                             />
                             <p className="text-sm text-gray-500">
-                                Deposit USDC on Sepolia, automatically bridge to
-                                Base Sepolia, and stake in Aave
+                                Deposit USDC on Base Sepolia, then bridge to
+                                Ethereum Sepolia via Avail Nexus
                             </p>
                         </div>
 
@@ -413,7 +631,7 @@ export default function CrossChainDepositCard() {
                                 <Loader2 className="h-8 w-8 animate-spin mx-auto text-teal-600" />
                                 <div>
                                     <p className="font-medium">
-                                        Depositing to Sepolia Vault...
+                                        Depositing to Base Sepolia Vault...
                                     </p>
                                     <p className="text-sm text-gray-500">
                                         {formatUnits(parseUnits(amount, 6), 6)}{" "}
@@ -451,8 +669,10 @@ export default function CrossChainDepositCard() {
                                     </p>
                                     {rebalanceHash && (
                                         <div className="mt-2">
-                                            <p className="text-xs text-gray-500">Transaction Hash:</p>
-                                            <a 
+                                            <p className="text-xs text-gray-500">
+                                                Transaction Hash:
+                                            </p>
+                                            <a
                                                 href={`https://sepolia.etherscan.io/tx/${rebalanceHash}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
@@ -462,12 +682,14 @@ export default function CrossChainDepositCard() {
                                             </a>
                                             {rebalanceConfirming && (
                                                 <p className="text-xs text-amber-600 mt-1">
-                                                    Waiting for confirmation... This may take a few minutes.
+                                                    Waiting for confirmation...
+                                                    This may take a few minutes.
                                                 </p>
                                             )}
                                             {rebalanceReceiptError && (
                                                 <p className="text-xs text-red-600 mt-1">
-                                                    Transaction failed or timed out
+                                                    Transaction failed or timed
+                                                    out
                                                 </p>
                                             )}
                                         </div>
@@ -485,7 +707,11 @@ export default function CrossChainDepositCard() {
                                         onClick={() => {
                                             setCurrentStep("idle");
                                             setError("");
-                                            setTxHashes({ approve: "", deposit: "", rebalance: "" });
+                                            setTxHashes({
+                                                approve: "",
+                                                deposit: "",
+                                                rebalance: "",
+                                            });
                                         }}
                                         variant="outline"
                                         className="w-32"
@@ -511,62 +737,131 @@ export default function CrossChainDepositCard() {
                         <Alert>
                             <AlertDescription className="space-y-3">
                                 <p className="font-medium">
-                                    ✅ Deposit Complete! Now Bridge to Base Sepolia
+                                    ✅ Deposit Complete! Ready to Bridge
                                 </p>
                                 <div className="text-sm space-y-2">
-                                    <p>Your {amount} USDC is now in the Sepolia vault. To complete the cross-chain flow:</p>
-                                    <ol className="list-decimal list-inside space-y-1 pl-2">
-                                        <li>Withdraw USDC from the Sepolia vault</li>
-                                        <li>Bridge via Avail Nexus to Base Sepolia</li>
-                                        <li>Deposit into Aave on Base Sepolia</li>
-                                    </ol>
-                                    <p className="text-amber-600 mt-2">
-                                        ℹ️ Note: The <code className="bg-gray-200 px-1 rounded">executeRebalance</code> function is restricted to Vincent (automated backend) only. For this demo, we'll bridge manually.
+                                    <p>
+                                        Your {amount} USDC is deposited in the
+                                        Base Sepolia vault. Bridge it to Sepolia
+                                        to complete the cross-chain flow.
                                     </p>
+                                    <div className="space-y-1">
+                                        <p className="font-medium text-teal-600">
+                                            🌉 Automatic Bridge:
+                                        </p>
+                                        <p className="text-xs">
+                                            USDC will arrive in your wallet on
+                                            Sepolia
+                                        </p>
+                                        <p className="text-xs text-amber-600">
+                                            Note: Auto-deposit into Aave
+                                            requires vault permissions (Vincent
+                                            automation)
+                                        </p>
+
+                                        <p className="font-medium text-gray-600 mt-2">
+                                            🔗 Manual Fallback:
+                                        </p>
+                                        <p className="text-xs">
+                                            Use Nexus Dashboard if automatic
+                                            bridge fails
+                                        </p>
+                                    </div>
                                 </div>
                             </AlertDescription>
                         </Alert>
 
+                        {bridgeProgress && (
+                            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                                <div className="flex items-center gap-2">
+                                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                                    <p className="text-sm text-blue-700">
+                                        {bridgeProgress}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="bg-gray-50 p-4 rounded-lg space-y-3 text-sm">
-                            <p className="font-medium">Manual Bridge Steps:</p>
-                            
-                            <div className="space-y-2">
-                                <p className="font-medium text-gray-700">Step 1: Withdraw from Vault</p>
-                                <div className="bg-white p-2 rounded border">
-                                    <p className="text-xs text-gray-600">Call on Sepolia Vault:</p>
-                                    <code className="text-xs">withdraw({amount * 1000000}) to your address</code>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <p className="font-medium text-gray-700">Step 2: Bridge via Nexus</p>
-                                <ul className="list-disc list-inside space-y-1 text-gray-600 pl-2">
-                                    <li>Amount: {amount} USDC</li>
-                                    <li>From: Ethereum Sepolia (11155111)</li>
-                                    <li>To: Base Sepolia (84532)</li>
-                                    <li className="break-all">USDC: {USDC_SEPOLIA}</li>
-                                </ul>
-                            </div>
-
-                            <div className="space-y-2">
-                                <p className="font-medium text-gray-700">Step 3: Deposit on Base</p>
-                                <div className="bg-white p-2 rounded border">
-                                    <p className="text-xs text-gray-600">Call on Base Aave Adapter:</p>
-                                    <code className="text-xs break-all">{BASE_SEPOLIA_AAVE_ADAPTER}.deposit(amount)</code>
-                                </div>
-                            </div>
+                            <p className="font-medium">Bridge Parameters:</p>
+                            <ul className="list-disc list-inside space-y-1 text-gray-600 pl-2">
+                                <li>Amount: {amount} USDC</li>
+                                <li>From: Base Sepolia (84532)</li>
+                                <li>To: Ethereum Sepolia (11155111)</li>
+                                <li className="break-all">
+                                    Source Token: {USDC_BASE_SEPOLIA}
+                                </li>
+                                <li className="break-all">
+                                    Recipient: {address}
+                                </li>
+                            </ul>
                         </div>
 
-                        <Button
-                            onClick={handleBridge}
-                            className="w-full"
-                            size="lg"
-                        >
-                            Open Avail Nexus Dashboard
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={handleBridge}
+                                className="flex-1"
+                                size="lg"
+                                disabled={bridging || !nexusSDK}
+                            >
+                                {bridging ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Bridging...
+                                    </>
+                                ) : !nexusSDK ? (
+                                    "Initializing Nexus..."
+                                ) : (
+                                    "🌉 Auto-Bridge with Nexus"
+                                )}
+                            </Button>
+
+                            <Button
+                                onClick={() => {
+                                    window.open(
+                                        "https://nexus.availproject.org",
+                                        "_blank"
+                                    );
+                                }}
+                                variant="outline"
+                                size="lg"
+                                className="flex-1"
+                            >
+                                🔗 Manual Bridge
+                            </Button>
+                        </div>
+
+                        {!nexusSDK && (
+                            <p className="text-xs text-center text-amber-600">
+                                Nexus SDK initializing... This may take a
+                                moment.
+                            </p>
+                        )}
+
+                        <div className="text-xs text-gray-500 space-y-1">
+                            <p className="font-medium">
+                                📝 Manual Bridge Instructions:
+                            </p>
+                            <ol className="list-decimal list-inside space-y-1 pl-2">
+                                <li>
+                                    Click "Manual Bridge" to open Nexus
+                                    Dashboard
+                                </li>
+                                <li>
+                                    Connect your wallet and select Base Sepolia
+                                    → Sepolia
+                                </li>
+                                <li>Bridge {amount} USDC</li>
+                                <li>
+                                    On Sepolia, deposit into adapter:{" "}
+                                    {SEPOLIA_AAVE_ADAPTER.slice(0, 10)}...
+                                </li>
+                            </ol>
+                        </div>
 
                         <p className="text-xs text-center text-gray-500">
-                            Future: Vincent automation will handle this entire flow automatically
+                            💡 In production, Vincent automation handles this
+                            automatically
                         </p>
                     </div>
                 )}
@@ -593,7 +888,7 @@ export default function CrossChainDepositCard() {
                                             Approve:
                                         </span>
                                         <a
-                                            href={`https://sepolia.etherscan.io/tx/${txHashes.approve}`}
+                                            href={`https://base-sepolia.blockscout.com/tx/${txHashes.approve}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-teal-600 hover:underline truncate flex-1"
@@ -609,7 +904,7 @@ export default function CrossChainDepositCard() {
                                             Deposit:
                                         </span>
                                         <a
-                                            href={`https://sepolia.etherscan.io/tx/${txHashes.deposit}`}
+                                            href={`https://base-sepolia.blockscout.com/tx/${txHashes.deposit}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-teal-600 hover:underline truncate flex-1"
@@ -625,7 +920,7 @@ export default function CrossChainDepositCard() {
                                             Rebalance:
                                         </span>
                                         <a
-                                            href={`https://sepolia.etherscan.io/tx/${txHashes.rebalance}`}
+                                            href={`https://base-sepolia.blockscout.com/tx/${txHashes.rebalance}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-teal-600 hover:underline truncate flex-1"
@@ -659,11 +954,9 @@ export default function CrossChainDepositCard() {
 function StepIndicator({
     title,
     status,
-    hash,
 }: {
     title: string;
     status: "complete" | "active" | "pending";
-    hash?: string;
 }) {
     return (
         <div className="flex flex-col items-center gap-1">
