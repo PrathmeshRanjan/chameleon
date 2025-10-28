@@ -109,24 +109,7 @@ export const useYieldVault = ({
         },
     });
 
-    // Debug wallet connection state
-    console.log("useYieldVault state:", {
-        address,
-        chainId,
-        isConnected: !!address,
-        assetAddress,
-        vaultAddress,
-        usdcBalance: usdcBalance?.toString(),
-        usdcAllowance: usdcAllowance?.toString(),
-        isApproving: isApprovePending || isApproveConfirming,
-        isDepositing: isDepositPending || isDepositConfirming,
-        approveHash,
-        depositHash,
-        isApproveSuccess,
-        isDepositSuccess,
-    });
-
-    // Write contract hooks
+    // Write contract hooks (must be declared before being used)
     const {
         writeContract: approveWrite,
         data: approveHash,
@@ -166,7 +149,9 @@ export const useYieldVault = ({
         depositHash,
         isApproveSuccess,
         isDepositSuccess,
-    }); // Deposit function
+    });
+
+    // Deposit function
     const deposit = useCallback(
         async (amount: string) => {
             if (!address || !assetAddress) {

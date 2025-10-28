@@ -9,7 +9,7 @@ function App() {
         <div className="flex items-center justify-center flex-col gap-y-4 h-full w-full max-w-6xl mx-auto px-4">
             <div className="text-center space-y-2 z-10 mt-8">
                 <h1 className="text-4xl font-bold bg-linear-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
-                    Smart Yield Optimizer
+                    Chameleon
                 </h1>
                 <p className="text-lg text-gray-600">
                     Automated cross-chain yield optimization with real-time
