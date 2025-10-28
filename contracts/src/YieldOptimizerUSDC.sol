@@ -66,10 +66,7 @@ contract YieldOptimizerUSDC is ERC4626, ReentrancyGuard, Ownable {
     /// @notice Mapping of protocol IDs to their adapters
     mapping(uint8 => ProtocolAdapter) public protocolAdapters;
 
-    /// @notice Avail Nexus contract for cross-chain operations
-    address public nexusContract;
-
-    /// @notice Vincent automation contract address
+    /// @notice Vincent automation contract address (handles off-chain Nexus bridging)
     address public vincentAutomation;
 
     /// @notice Performance fee in basis points (e.g., 1000 = 10%)
@@ -119,6 +116,16 @@ contract YieldOptimizerUSDC is ERC4626, ReentrancyGuard, Ownable {
         uint256 apyGain
     );
 
+    event CrossChainRebalanceInitiated(
+        address indexed user,
+        uint8 fromProtocol,
+        uint8 toProtocol,
+        uint256 amount,
+        uint256 srcChain,
+        uint256 dstChain,
+        address vincentAutomation
+    );
+
     event GuardrailsUpdated(
         address indexed user,
         uint256 maxSlippageBps,
@@ -165,18 +172,18 @@ contract YieldOptimizerUSDC is ERC4626, ReentrancyGuard, Ownable {
      * @notice Initialize the yield optimizer vault
      * @param _usdc USDC token address
      * @param _treasury Treasury address for fees
-     * @param _nexus Avail Nexus contract address (can be address(0) and updated later via setNexusContract)
+     * @param _vincentAutomation Vincent automation address for rebalancing
      */
     constructor(
         IERC20 _usdc,
         address _treasury,
-        address _nexus
+        address _vincentAutomation
     ) ERC4626(_usdc) ERC20("Smart Yield USDC", "syUSDC") Ownable(msg.sender) {
         require(_treasury != address(0), "Invalid treasury");
-        // Nexus can be address(0) and set later via setNexusContract
+        require(_vincentAutomation != address(0), "Invalid automation address");
         
         treasury = _treasury;
-        nexusContract = _nexus;
+        vincentAutomation = _vincentAutomation;
         lastFeeCalculation = uint64(block.timestamp);
     }
 
@@ -327,26 +334,36 @@ contract YieldOptimizerUSDC is ERC4626, ReentrancyGuard, Ownable {
         
         // Execute the rebalance
         if (params.srcChainId == params.dstChainId) {
-            // Same-chain rebalance
+            // Same-chain rebalance - execute fully on-chain
             _rebalanceSameChain(params);
+            
+            // Update user metadata
+            userMetadata[params.user].currentProtocol = params.toProtocol;
+            userMetadata[params.user].lastActionTime = uint64(block.timestamp);
+            
+            emit Rebalanced(
+                params.user,
+                params.fromProtocol,
+                params.toProtocol,
+                params.amount,
+                params.srcChainId,
+                params.dstChainId,
+                params.expectedAPYGain
+            );
         } else {
-            // Cross-chain rebalance via Avail Nexus
-            _rebalanceCrossChain(params);
+            // Cross-chain rebalance - withdraw and transfer to Vincent for Nexus bridging
+            _initiateCrossChainRebalance(params);
+            
+            emit CrossChainRebalanceInitiated(
+                params.user,
+                params.fromProtocol,
+                params.toProtocol,
+                params.amount,
+                params.srcChainId,
+                params.dstChainId,
+                vincentAutomation
+            );
         }
-        
-        // Update user metadata
-        userMetadata[params.user].currentProtocol = params.toProtocol;
-        userMetadata[params.user].lastActionTime = uint64(block.timestamp);
-        
-        emit Rebalanced(
-            params.user,
-            params.fromProtocol,
-            params.toProtocol,
-            params.amount,
-            params.srcChainId,
-            params.dstChainId,
-            params.expectedAPYGain
-        );
     }
 
     // ============ Guardrails Management ============
@@ -485,13 +502,6 @@ contract YieldOptimizerUSDC is ERC4626, ReentrancyGuard, Ownable {
 
     /**
      * @notice Update Nexus contract address
-     * @param _nexus New Nexus address
-     */
-    function setNexusContract(address _nexus) external onlyOwner {
-        require(_nexus != address(0), "Invalid address");
-        nexusContract = _nexus;
-    }
-
     /**
      * @notice Update performance fee
      * @param _feeBps New fee in basis points
@@ -621,13 +631,12 @@ contract YieldOptimizerUSDC is ERC4626, ReentrancyGuard, Ownable {
     }
 
     /**
-     * @notice Execute cross-chain rebalancing via Avail Nexus
+     * @notice Initiate cross-chain rebalancing (Nexus integration handled off-chain)
      * @param params Rebalance parameters
+     * @dev Withdraws from source protocol and approves Vincent to spend tokens
      */
-    function _rebalanceCrossChain(RebalanceParams calldata params) internal {
-        require(nexusContract != address(0), "Nexus contract not set");
-        
-        // Withdraw from source protocol
+    function _initiateCrossChainRebalance(RebalanceParams calldata params) internal {
+        // Withdraw from source protocol if not idle
         if (params.fromProtocol > 0) {
             address sourceAdapter = protocolAdapters[params.fromProtocol]
                 .adapterAddress;
@@ -639,37 +648,19 @@ contract YieldOptimizerUSDC is ERC4626, ReentrancyGuard, Ownable {
                     params.amount
                 )
             );
-            require(withdrawSuccess, "Withdraw failed");
+            require(withdrawSuccess, "Withdraw from source protocol failed");
         }
         
-        // Get destination adapter address
-        address destAdapter = protocolAdapters[params.toProtocol]
-            .adapterAddress;
+        // Approve Vincent automation to spend tokens for Nexus bridging
+        // Vincent will use Nexus SDK which will transferFrom this vault
+        IERC20(asset()).forceApprove(vincentAutomation, params.amount);
         
-        // Approve Nexus to spend tokens
-        IERC20(asset()).forceApprove(nexusContract, params.amount);
-        
-        // Encode deposit call for destination chain
-        bytes memory executeCall = abi.encodeWithSignature(
-            "deposit(address,uint256)",
-            asset(),
-            params.amount
-        );
-        
-        // Execute bridge & execute via Nexus
-        // Note: Actual Nexus interface may differ - adjust based on SDK
-        (bool bridgeSuccess, ) = nexusContract.call(
-            abi.encodeWithSignature(
-                "bridgeAndExecute(uint256,uint256,address,uint256,address,bytes)",
-                params.srcChainId,
-                params.dstChainId,
-                asset(),
-                params.amount,
-                destAdapter,
-                executeCall
-            )
-        );
-        require(bridgeSuccess, "Cross-chain rebalance failed");
+        // Note: The actual bridging and deposit on destination chain
+        // is handled by Vincent automation using Avail Nexus SDK
+        // Vincent will call nexus.bridgeAndExecute() which will:
+        // 1. transferFrom(vault, nexus, amount)
+        // 2. Bridge to destination chain
+        // 3. Execute deposit on destination protocol
     }
 
     /**
